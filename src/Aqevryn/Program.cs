@@ -44,6 +44,8 @@ class Program
                 "publish" => await RunPublish(settings, dryRun),
                 "health" => RunHealth(),
                 "build-site" => await RunBuildSite(),
+                "scheduler" => await RunScheduler(settings),
+                "api" => await RunApi(),
                 _ => ShowHelpAndReturn(1),
             };
         }
@@ -169,9 +171,25 @@ class Program
     static async Task<int> RunBuildSite()
     {
         Console.WriteLine("Building site...");
-        // TODO: Implement static site generator
-        Console.WriteLine("Site built at website/");
-        return await Task.FromResult(0);
+        var gen = new Publishing.SiteGenerator();
+        gen.Generate();
+        return 0;
+    }
+
+    static async Task<int> RunScheduler(AqevrynSettings settings)
+    {
+        Console.WriteLine("Scheduler started. Press Ctrl+C to stop.");
+        var scheduler = new Scheduler.AqevrynScheduler(settings);
+        await scheduler.StartAsync();
+        return 0;
+    }
+
+    static async Task<int> RunApi()
+    {
+        Console.WriteLine("API server starting on port 8000...");
+        var api = new Api.ApiServer();
+        await api.StartAsync();
+        return 0;
     }
 
     static void ShowHelp()
@@ -188,6 +206,8 @@ class Program
         Console.WriteLine("  write        Generate a research article");
         Console.WriteLine("  review       Run editorial review");
         Console.WriteLine("  publish      Publish (create PR or auto-publish)");
+        Console.WriteLine("  scheduler    Run the scheduler loop");
+        Console.WriteLine("  api          Start the API server");
         Console.WriteLine("  health       Check application health");
         Console.WriteLine("  build-site   Build the static research website");
         Console.WriteLine();

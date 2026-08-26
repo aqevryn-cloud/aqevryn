@@ -1,0 +1,42 @@
+name: Deploy Website
+on:
+  push:
+    branches: [main]
+    paths:
+      - "articles/published/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build static site
+        run: |
+          mkdir -p _site
+          cp -r website/* _site/ 2>/dev/null || true
+          echo '<html><body><h1>Aqevryn Research</h1>' > _site/index.html
+          for f in articles/published/*.md; do
+            title=$(head -1 "$f" | sed 's/^# //')
+            echo "<li><a href='articles/$(basename $f .md).html'>$title</a></li>" >> _site/index.html 2>/dev/null || true
+          done
+          echo '</ul></body></html>' >> _site/index.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "_site"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
