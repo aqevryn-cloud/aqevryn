@@ -92,7 +92,7 @@ public class GitHubRepositoryManager
             {
                 name = _repo,
                 description = "Aqevryn — Autonomous Technology Research & Publishing",
-                @private = false,
+                @private = true,
                 has_issues = true,
                 has_wiki = true,
                 auto_init = true,  // Creates with initial commit
