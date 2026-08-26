@@ -1,0 +1,55 @@
+services:
+  aqevryn:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aqevryn
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=Host=postgres;Database=aqevryn;Username=aqevryn;Password=aqevryn
+    volumes:
+      - aqevryn_data:/app/data
+      - aqevryn_articles:/app/articles
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 512m
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: aqevryn-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aqevryn
+      POSTGRES_PASSWORD: aqevryn
+      POSTGRES_DB: aqevryn
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aqevryn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 256m
+
+volumes:
+  postgres_data:
+    name: aqevryn_postgres_data
+  aqevryn_data:
+    name: aqevryn_data
+  aqevryn_articles:
+    name: aqevryn_articles
