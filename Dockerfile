@@ -6,7 +6,11 @@ RUN dotnet restore
 COPY . .
 RUN dotnet publish src/Aqevryn/Aqevryn.csproj -c Release -o /app
 
-FROM mcr.microsoft.com/dotnet/runtime:8.0
+# Copy config files for the runtime (both as example and default)
+COPY sources.example.yaml /app/sources.example.yaml
+RUN cp /app/sources.example.yaml /app/sources.yaml
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app .
 RUN groupadd -r aqevryn && useradd -r -g aqevryn -d /app -s /bin/bash aqevryn
