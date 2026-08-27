@@ -29,7 +29,7 @@ public class WebDashboard
         {
             try
             {
-                tcpListener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+                tcpListener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Any, port);
                 tcpListener.Start();
                 Console.WriteLine($"Aqevryn Web Dashboard: http://localhost:{port}/");
                 Console.WriteLine("Press Ctrl+C to stop.");

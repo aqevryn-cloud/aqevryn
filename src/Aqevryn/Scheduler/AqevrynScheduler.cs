@@ -22,6 +22,22 @@ public class AqevrynScheduler
 
     public async Task StartAsync()
     {
+        // Start the web dashboard in the background
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Api.WebDashboard.RunAsync(9888);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Web dashboard failed to start");
+            }
+        });
+
+        // Small delay to let web server start
+        await Task.Delay(500);
+
         _running = true;
         _logger.LogInformation("Scheduler started (collect: {Co}h, analyze: {An}h, research: {Re}h)",
             _settings.CollectIntervalHours, _settings.AnalyzeIntervalHours, _settings.RankIntervalHours);
