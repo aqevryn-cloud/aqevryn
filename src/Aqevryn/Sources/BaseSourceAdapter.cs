@@ -6,6 +6,7 @@ namespace Aqevryn.Sources;
 public abstract class BaseSourceAdapter : ISourceAdapter
 {
     protected readonly Dictionary<string, object> Config;
+    protected readonly AqevrynSettings Settings;
     public string Name { get; }
     public bool Enabled { get; }
     public string? Category { get; }
@@ -13,6 +14,7 @@ public abstract class BaseSourceAdapter : ISourceAdapter
     protected BaseSourceAdapter(Dictionary<string, object> config, AqevrynSettings settings)
     {
         Config = config;
+        Settings = settings;
         Name = GetString(config, "name", "Unnamed Source");
         Enabled = GetBool(config, "enabled", true);
         Category = GetStringOrNull(config, "category");

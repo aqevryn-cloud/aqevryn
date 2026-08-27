@@ -35,7 +35,12 @@ public class GitHubSourceAdapter : BaseSourceAdapter
             {
                 var query = Uri.EscapeDataString($"topic:{topic} stars:>={minStars}");
                 var url = $"{ApiBase}/search/repositories?q={query}&sort={sort}&order=desc&per_page=10";
-                var headers = new Dictionary<string, string> { { "Accept", "application/vnd.github+json" } };
+                var headers = new Dictionary<string, string>
+                {
+                    { "Accept", "application/vnd.github+json" },
+                    { "Authorization", $"Bearer {Settings.GitHubToken}" },
+                    { "User-Agent", "Aqevryn/1.0" },
+                };
                 var json = await _http.FetchStringAsync(url, headers);
                 var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
@@ -73,7 +78,7 @@ public class GitHubSourceAdapter : BaseSourceAdapter
                     items.Add(item);
                 }
             }
-            catch { continue; }
+            catch (Exception ex) { Console.Error.WriteLine($"GitHub error for topic '{topic}': {ex.Message}"); continue; }
         }
         return items;
     }

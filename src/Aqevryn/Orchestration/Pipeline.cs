@@ -22,6 +22,7 @@ public class Pipeline
     public async Task<PipelineContext> RunAsync()
     {
         _logger.LogInformation("Pipeline started: {RunId}", _ctx.RunId);
+        ActivityRegistry.LogStart("pipeline", "pipeline", $"RunId: {_ctx.RunId}, DryRun: {_ctx.DryRun}");
         try
         {
             _ctx.Stage = "DISCOVERING"; await StageDiscoverAsync();
@@ -31,23 +32,30 @@ public class Pipeline
             _ctx.Stage = "REVIEWING"; await StageReviewAsync();
             _ctx.Stage = "PUBLISHING"; await StagePublishAsync();
             _ctx.Stage = "COMPLETED";
+            var elapsed = DateTime.UtcNow - _ctx.StartTime;
             _logger.LogInformation("Pipeline completed: {RunId}", _ctx.RunId);
+            ActivityRegistry.LogComplete("pipeline", "pipeline",
+                $"Completed in {elapsed.TotalSeconds:F0}s. Topic: {_ctx.SelectedTopic?.Topic ?? "none"}, " +
+                $"Articles: {_ctx.Articles.Count}, PR: {_ctx.PublishPrUrl ?? "none"}",
+                $"Stage: {_ctx.Stage}, Duration: {elapsed.TotalSeconds:F1}s");
         }
         catch (Exception ex)
         {
             _ctx.Stage = "FAILED"; _ctx.Error = ex.Message;
             _logger.LogError(ex, "Pipeline failed at stage {Stage}", _ctx.Stage);
+            ActivityRegistry.LogError("pipeline", "pipeline", $"{_ctx.Stage}: {ex.Message}");
         }
         return _ctx;
     }
 
     private async Task StageDiscoverAsync()
     {
+        ActivityRegistry.LogStart("source_collector", "discover");
         var sources = ConfigLoader.LoadSources("sources.yaml");
         if (sources.Count == 0)
         {
             sources = ConfigLoader.LoadSources("sources.example.yaml");
-            if (sources.Count == 0) { _logger.LogWarning("No source config found"); return; }
+            if (sources.Count == 0) { _logger.LogWarning("No source config found"); ActivityRegistry.LogComplete("source_collector", "discover", "0 articles (no sources)"); return; }
         }
 
         var collector = new SourceCollector(sources, _settings);
@@ -63,9 +71,12 @@ public class Pipeline
         }).ToList();
 
         _logger.LogInformation("Collected {Count} articles", _ctx.Articles.Count);
+        ActivityRegistry.LogComplete("source_collector", "discover",
+            $"{_ctx.Articles.Count} articles from {sources.Count} sources");
 
         if (_ctx.Articles.Count > 0)
         {
+            ActivityRegistry.LogStart("topic_discovery", "topic_discovery", $"{_ctx.Articles.Count} articles");
             var discovery = new TopicDiscoveryAgent();
             var results = await discovery.DiscoverAsync(_ctx.Articles);
             _ctx.Topics = results.Select(r => new Dictionary<string, object?>
@@ -75,6 +86,9 @@ public class Pipeline
                 ["id"] = r.Topic.GetHashCode(),
             }).ToList();
             _logger.LogInformation("Discovered {Count} topics", _ctx.Topics.Count);
+            ActivityRegistry.LogComplete("topic_discovery", "topic_discovery",
+                $"{_ctx.Topics.Count} topics discovered",
+                $"Topics: {string.Join(", ", _ctx.Topics.Select(t => t.GetValueOrDefault("topic")))}");
         }
     }
 
@@ -159,6 +173,7 @@ public class Pipeline
     {
         if (_ctx.SelectedTopic == null) return;
         var topicName = _ctx.SelectedTopic.Topic;
+        ActivityRegistry.LogStart("research_planner", "research", $"Topic: {topicName}");
 
         var topicArticles = _ctx.Articles.Where(a =>
             $"{a.GetValueOrDefault("title")} {a.GetValueOrDefault("summary")}".Contains(topicName, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -168,28 +183,37 @@ public class Pipeline
             _ctx.ResearchabilityScores.GetValueOrDefault(topicName),
             _ctx.TrendScores.GetValueOrDefault(topicName),
             _ctx.MarketScores.GetValueOrDefault(topicName), topicArticles);
+        ActivityRegistry.LogComplete("research_planner", "research", $"Question: {_ctx.ResearchPlan.ResearchQuestion}");
 
+        ActivityRegistry.LogStart("deep_researcher", "research", $"Researching: {topicName}");
         var researcher = new ResearchAgent();
         _ctx.ResearchResult = await researcher.ResearchAsync(_ctx.ResearchPlan.ResearchQuestion, topicName, topicArticles);
 
         _logger.LogInformation("Research complete: {Count} sources, {Findings} findings",
             _ctx.ResearchResult.SourcesAnalyzed.Count, _ctx.ResearchResult.Findings.Count);
+        ActivityRegistry.LogComplete("deep_researcher", "research",
+            $"{_ctx.ResearchResult.SourcesAnalyzed.Count} sources, {_ctx.ResearchResult.Findings.Count} findings");
     }
 
     private async Task StageWriteAsync()
     {
         if (_ctx.ResearchResult == null) return;
+        ActivityRegistry.LogStart("article_writer", "write", $"Topic: {_ctx.SelectedTopic?.Topic}");
         var writer = new ArticleWriterAgent();
         _ctx.GeneratedArticle = await writer.WriteAsync(_ctx.SelectedTopic?.Topic ?? "Research Topic", _ctx.ResearchResult);
         _logger.LogInformation("Article written: {Title}", _ctx.GeneratedArticle.Title);
+        ActivityRegistry.LogComplete("article_writer", "write", $"Title: {_ctx.GeneratedArticle.Title}");
     }
 
     private async Task StageReviewAsync()
     {
         if (_ctx.GeneratedArticle == null) return;
+        ActivityRegistry.LogStart("editorial_review", "review", $"Article: {_ctx.GeneratedArticle.Title}");
         var reviewer = new EditorialReviewAgent();
         _ctx.EditorialReview = await reviewer.ReviewAsync(_ctx.GeneratedArticle, _settings.MinPublicationScore);
         _logger.LogInformation("Review: {Score} - {Recommendation}", _ctx.EditorialReview.OverallScore, _ctx.EditorialReview.PublishRecommendation);
+        ActivityRegistry.LogComplete("editorial_review", "review",
+            $"Score: {_ctx.EditorialReview.OverallScore}, Recommendation: {_ctx.EditorialReview.PublishRecommendation}");
     }
 
     private async Task StagePublishAsync()
@@ -199,6 +223,7 @@ public class Pipeline
         if (_ctx.EditorialReview.PublishRecommendation != "APPROVE" || _ctx.EditorialReview.OverallScore < _settings.MinPublicationScore)
         {
             _logger.LogInformation("Article not approved for publication");
+            ActivityRegistry.LogComplete("publisher", "publish", "Not approved");
             return;
         }
 
@@ -217,6 +242,7 @@ public class Pipeline
 
         if (!_settings.DryRun && !string.IsNullOrEmpty(_settings.GitHubToken))
         {
+            ActivityRegistry.LogStart("publisher", "publish", $"Branch: research/{topicName.ToLower().Replace(" ", "-")}");
             var publisher = new GitHubPublisher(_settings.GitHubToken, _settings.GitHubOwner,
                 _settings.GitHubRepository, _settings.GitHubDefaultBranch, _settings.AutoPublish);
             var result = await publisher.PublishAsync(markdown, filename, topicName, scores, _settings.DryRun);
@@ -225,10 +251,13 @@ public class Pipeline
             _ctx.PublishPrNumber = result.PrNumber;
             _ctx.PublishPrUrl = result.PrUrl;
             _logger.LogInformation("Publish result: {Success}, PR: {PrUrl}", result.Success, result.PrUrl);
+            ActivityRegistry.LogComplete("publisher", "publish",
+                $"Branch: {result.Branch}, PR: {result.PrUrl ?? "none"}, Success: {result.Success}");
         }
         else
         {
             _logger.LogInformation("Dry run or no GitHub token — skipping publish");
+            ActivityRegistry.LogComplete("publisher", "publish", "Skipped (dry run or no token)");
         }
     }
 }

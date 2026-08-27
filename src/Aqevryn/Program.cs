@@ -47,6 +47,9 @@ class Program
                 "scheduler" => await RunScheduler(settings),
                 "api" => await RunApi(),
                 "test-github" => await RunTestGitHub(settings),
+                "dashboard" => RunDashboard(settings),
+                "watch" => await RunWatch(settings),
+                "logs" => RunLogs(),
                 _ => ShowHelpAndReturn(1),
             };
         }
@@ -346,6 +349,107 @@ class Program
         return 0;
     }
 
+    static int RunDashboard(AqevrynSettings settings)
+    {
+        var summary = ActivityRegistry.GetSummary();
+        
+        Console.WriteLine("╔══════════════════════════════════════╗");
+        Console.WriteLine("║       Aqevryn — Dashboard            ║");
+        Console.WriteLine("╚══════════════════════════════════════╝");
+        Console.WriteLine();
+        Console.WriteLine("Pipeline:");
+        Console.WriteLine($"  Total Runs:     {summary.TotalRuns}");
+        Console.WriteLine($"  Runs Today:     {summary.RunsToday}");
+        Console.WriteLine($"  Last Run:       {summary.LastRunTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "never"}");
+        Console.WriteLine($"  Last Status:    {summary.LastRunStatus ?? "-"} ({summary.LastRunDuration?.TotalSeconds:F0}s)");
+        Console.WriteLine($"  Last Output:    {summary.LastRunOutput ?? "-"}");
+        Console.WriteLine();
+        Console.WriteLine("Today's Activity:");
+        Console.WriteLine($"  Articles Collected: {summary.ArticlesCollectedToday}");
+        Console.WriteLine($"  Topics Discovered:  {summary.TopicsDiscoveredToday}");
+        Console.WriteLine($"  Articles Published: {summary.ArticlesPublishedToday}");
+        Console.WriteLine();
+        Console.WriteLine("GitHub:");
+        Console.WriteLine($"  Owner: {settings.GitHubOwner}");
+        Console.WriteLine($"  Repo:  {settings.GitHubRepository}");
+        Console.WriteLine($"  View:  https://github.com/{settings.GitHubOwner}/{settings.GitHubRepository}");
+        Console.WriteLine();
+        
+        if (summary.RecentErrors.Count > 0)
+        {
+            Console.WriteLine("Recent Errors:");
+            foreach (var err in summary.RecentErrors.Take(5))
+                Console.WriteLine($"  ! {err}");
+            Console.WriteLine();
+        }
+        
+        Console.WriteLine("Recent Activity:");
+        var recent = ActivityRegistry.GetRecent(10);
+        foreach (var log in recent)
+        {
+            var icon = log.Status == "COMPLETED" ? "✓" : log.Status == "FAILED" ? "✗" : "○";
+            var time = log.StartedAt.ToString("HH:mm:ss");
+            var dur = log.Duration?.TotalSeconds;
+            var durStr = dur.HasValue ? $" ({dur:F1}s)" : "";
+            Console.WriteLine($"  {icon} [{time}] {log.AgentName} ({log.Stage}){durStr}");
+            if (log.OutputSummary != null)
+                Console.WriteLine($"      → {log.OutputSummary}");
+        }
+        
+        return 0;
+    }
+
+    static async Task<int> RunWatch(AqevrynSettings settings)
+    {
+        Console.WriteLine("Watching pipeline activity. Press Ctrl+C to stop.");
+        Console.WriteLine();
+        
+        var lastCount = 0;
+        while (true)
+        {
+            var recent = ActivityRegistry.GetRecent(20);
+            if (recent.Count != lastCount)
+            {
+                Console.Clear();
+                RunDashboard(settings);
+                lastCount = recent.Count;
+            }
+            await Task.Delay(2000);
+        }
+    }
+
+    static int RunLogs()
+    {
+        var logs = ActivityRegistry.GetRecent(30);
+        
+        Console.WriteLine("╔══════════════════════════════════════╗");
+        Console.WriteLine("║       Aqevryn — Activity Log         ║");
+        Console.WriteLine("╚══════════════════════════════════════╝");
+        Console.WriteLine();
+        
+        if (logs.Count == 0)
+        {
+            Console.WriteLine("No activity recorded yet. Run 'aqevryn run' first.");
+            return 0;
+        }
+        
+        foreach (var log in logs)
+        {
+            var icon = log.Status == "COMPLETED" ? "✅" : log.Status == "FAILED" ? "❌" : "🔄";
+            var time = log.StartedAt.ToString("yyyy-MM-dd HH:mm:ss");
+            var dur = log.Duration?.TotalSeconds;
+            var durStr = dur.HasValue ? $" [{dur:F1}s]" : "";
+            
+            Console.WriteLine($"{icon} [{time}] {log.AgentName}.{log.Stage}{durStr}");
+            if (log.InputSummary != null) Console.WriteLine($"   In:  {log.InputSummary}");
+            if (log.OutputSummary != null) Console.WriteLine($"   Out: {log.OutputSummary}");
+            if (log.Error != null) Console.WriteLine($"   Err: {log.Error}");
+            Console.WriteLine();
+        }
+        
+        return 0;
+    }
+
     static void ShowHelp()
     {
         Console.WriteLine("Aqevryn — Autonomous Technology Research & Publishing Agent");
@@ -365,6 +469,9 @@ class Program
         Console.WriteLine("  health       Check application health");
         Console.WriteLine("  build-site   Build the static research website");
         Console.WriteLine("  test-github  Test GitHub connection and create repository if needed");
+        Console.WriteLine("  dashboard    Show pipeline activity dashboard");
+        Console.WriteLine("  watch        Live-update dashboard (auto-refresh)");
+        Console.WriteLine("  logs         Show recent agent activity log");
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --dry-run    Run without publishing");
