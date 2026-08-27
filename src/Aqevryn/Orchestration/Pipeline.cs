@@ -98,12 +98,33 @@ public class Pipeline
             var topicName = cluster.GetValueOrDefault("canonical_topic")?.ToString() ?? "";
             if (string.IsNullOrEmpty(topicName)) continue;
 
+            // Try to match cluster articles by member topics
             var clusterArticles = _ctx.Articles.Where(a =>
             {
                 var text = $"{a.GetValueOrDefault("title")} {a.GetValueOrDefault("summary")}";
-                return cluster.GetValueOrDefault("member_topics") is List<object> members &&
-                       members.Any(m => text.Contains(m?.ToString() ?? "", StringComparison.OrdinalIgnoreCase));
+                if (cluster.GetValueOrDefault("member_topics") is List<object> members)
+                {
+                    foreach (var member in members)
+                    {
+                        var memberStr = member?.ToString() ?? "";
+                        // Match on the member topic (e.g., "Artificial Intelligence" matches "AI")
+                        if (!string.IsNullOrEmpty(memberStr) &&
+                            text.Contains(memberStr, StringComparison.OrdinalIgnoreCase))
+                            return true;
+                        // Also match on individual words from the topic
+                        foreach (var word in memberStr.Split(' '))
+                        {
+                            if (word.Length > 2 && text.Contains(word, StringComparison.OrdinalIgnoreCase))
+                                return true;
+                        }
+                    }
+                }
+                return false;
             }).ToList();
+
+            // If no articles matched the cluster, use all articles as fallback
+            if (clusterArticles.Count == 0)
+                clusterArticles = _ctx.Articles;
 
             var tr = await trend.AnalyzeAsync(topicName, clusterArticles);
             _ctx.TrendScores[topicName] = tr.Score;
@@ -117,8 +138,16 @@ public class Pipeline
             _ctx.ArticleCounts[topicName] = clusterArticles.Count;
         }
 
+        // The Rank method expects a "topic" key, but clusters use "canonical_topic"
+        // Remap clusters to have the "topic" key expected by the ranker
+        var rankerTopics = _ctx.Clusters.Select(c => new Dictionary<string, object?>
+        {
+            ["topic"] = c.GetValueOrDefault("canonical_topic"),
+            ["category"] = c.GetValueOrDefault("canonical_topic"),
+        }).ToList();
+
         var ranker = new TopicRanker();
-        _ctx.RankedTopics = ranker.Rank(_ctx.Clusters, _ctx.TrendScores, _ctx.ResearchabilityScores, _ctx.MarketScores, _ctx.ArticleCounts);
+        _ctx.RankedTopics = ranker.Rank(rankerTopics, _ctx.TrendScores, _ctx.ResearchabilityScores, _ctx.MarketScores, _ctx.ArticleCounts);
         var selected = ranker.SelectTopN(_ctx.RankedTopics, 1);
         _ctx.SelectedTopic = selected.FirstOrDefault();
 

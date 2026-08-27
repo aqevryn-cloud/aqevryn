@@ -63,12 +63,12 @@ public class GitHubPublisher
             // Step 2: Scaffold directory structure if new repo
             await repoManager.ScaffoldRepositoryAsync();
 
-            // Step 3: Get the default branch SHA (now it will work since repo exists)
-            var mainSha = await GetBranchShaAsync(_defaultBranch);
+            // Step 3: Get the default branch SHA using the manager (handles retry and branch resolution)
+            var mainSha = await repoManager.GetBranchShaAsync(_defaultBranch);
             if (mainSha == null)
             {
                 // If main branch doesn't exist yet (new repo), try 'master'
-                mainSha = await GetBranchShaAsync("master");
+                mainSha = await repoManager.GetBranchShaAsync("master");
                 if (mainSha == null)
                     return new GitHubPublishResult { Success = false, Error = $"Could not get SHA for branch '{_defaultBranch}' or 'master'" };
             }
@@ -100,16 +100,12 @@ public class GitHubPublisher
         return $"research/{slug[..Math.Min(60, slug.Length)]}";
     }
 
+    // Gets branch SHA using the shared repository manager for consistency and retries
+    // This is kept for backward compatibility but delegates to the manager
     private async Task<string?> GetBranchShaAsync(string branch)
     {
-        using var http = new HttpClient();
-        http.DefaultRequestHeaders.Add("Authorization", $"Bearer {_token}");
-        http.DefaultRequestHeaders.Add("User-Agent", "Aqevryn/1.0");
-        var response = await http.GetAsync($"{ApiBase}/repos/{_owner}/{_repo}/git/ref/heads/{branch}");
-        if (!response.IsSuccessStatusCode) return null;
-        var json = await response.Content.ReadAsStringAsync();
-        var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("object").GetProperty("sha").GetString();
+        var repoManager = new GitHubRepositoryManager(_token, _owner, _repo, _defaultBranch, null);
+        return await repoManager.GetBranchShaAsync(branch);
     }
 
     private async Task<bool> CreateBranchAsync(string branch, string sha)

@@ -16,6 +16,8 @@ public class GitHubRepositoryManager
     private readonly string _defaultBranch;
     private readonly ILogger<GitHubRepositoryManager> _logger;
     private const string ApiBase = "https://api.github.com";
+    private const int MaxRetries = 5;
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
 
     public GitHubRepositoryManager(string token, string owner, string repo,
         string defaultBranch = "main", ILogger<GitHubRepositoryManager>? logger = null)
@@ -31,7 +33,7 @@ public class GitHubRepositoryManager
 
     /// <summary>
     /// Ensures the repository exists. If it does not, creates it and
-    /// scaffolds the articles directory structure.
+    /// waits for the default branch to be ready.
     /// </summary>
     /// <returns>True if repository is ready (exists or was created), false on failure.</returns>
     public async Task<bool> EnsureRepositoryAsync()
@@ -42,11 +44,20 @@ public class GitHubRepositoryManager
             return false;
         }
 
-        // Step 1: Check if repository exists
-        if (await RepositoryExistsAsync())
+        // Step 1: Check if repository exists (with retry for transient errors)
+        for (int attempt = 1; attempt <= MaxRetries; attempt++)
         {
-            _logger.LogInformation("Repository {Owner}/{Repo} already exists", _owner, _repo);
-            return true;
+            if (await RepositoryExistsAsync())
+            {
+                _logger.LogInformation("Repository {Owner}/{Repo} already exists", _owner, _repo);
+                return true;
+            }
+
+            if (attempt < MaxRetries)
+            {
+                _logger.LogDebug("Repository {Owner}/{Repo} not found on attempt {Attempt}, retrying...", _owner, _repo, attempt);
+                await Task.Delay(RetryDelay);
+            }
         }
 
         _logger.LogInformation("Repository {Owner}/{Repo} does not exist — creating...", _owner, _repo);
@@ -55,14 +66,22 @@ public class GitHubRepositoryManager
         var created = await CreateRepositoryAsync();
         if (!created) return false;
 
-        // Step 3: Wait briefly for GitHub to propagate the new repo
-        await Task.Delay(TimeSpan.FromSeconds(3));
+        // Step 3: Wait for the default branch to be ready by polling
+        _logger.LogInformation("Repository created: https://github.com/{Owner}/{Repo} — waiting for default branch to be ready...", _owner, _repo);
+        var branchReady = await WaitForBranchReadyAsync();
+        if (!branchReady)
+        {
+            _logger.LogError("Repository created but default branch '{Branch}' never became available. This could be a GitHub propagation delay — try again shortly.", _defaultBranch);
+            return false;
+        }
 
-        _logger.LogInformation("Repository created: https://github.com/{Owner}/{Repo}", _owner, _repo);
+        _logger.LogInformation("Repository {Owner}/{Repo} is ready with branch '{Branch}'", _owner, _repo, _defaultBranch);
         return true;
     }
 
-    /// <summary>Checks whether the repository already exists.</summary>
+    /// <summary>
+    /// Checks whether the repository already exists.
+    /// </summary>
     public async Task<bool> RepositoryExistsAsync()
     {
         try
@@ -71,14 +90,42 @@ public class GitHubRepositoryManager
             var response = await http.GetAsync($"{ApiBase}/repos/{_owner}/{_repo}");
             return response.IsSuccessStatusCode;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogDebug(ex, "RepositoryExistsAsync check failed");
             return false;
         }
     }
 
     /// <summary>
-    /// Creates the repository under the owner's account.
+    /// Polls until the default branch (or 'master' fallback) is available
+    /// after a new repository creation.
+    /// </summary>
+    public async Task<bool> WaitForBranchReadyAsync()
+    {
+        for (int attempt = 1; attempt <= MaxRetries + 3; attempt++)
+        {
+            // Try the configured default branch first
+            var sha = await GetBranchShaAsync(_defaultBranch);
+            if (sha != null) return true;
+
+            // Fallback to 'master' in case GitHub defaults there
+            sha = await GetBranchShaAsync("master");
+            if (sha != null)
+            {
+                _logger.LogInformation("Default branch is 'master', not '{Branch}' — consider updating GITHUB_DEFAULT_BRANCH in your config", _defaultBranch);
+                return true;
+            }
+
+            _logger.LogDebug("Branch not ready yet (attempt {Attempt}), waiting...", attempt);
+            await Task.Delay(RetryDelay);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Creates the repository under the owner's account with explicit default branch.
     /// </summary>
     private async Task<bool> CreateRepositoryAsync()
     {
@@ -96,6 +143,7 @@ public class GitHubRepositoryManager
                 has_issues = true,
                 has_wiki = true,
                 auto_init = true,  // Creates with initial commit
+                default_branch = _defaultBranch,  // Explicitly set the default branch
             });
 
             var endpoint = isOrg
@@ -125,34 +173,90 @@ public class GitHubRepositoryManager
     /// <summary>
     /// Scaffolds the articles directory structure by creating placeholder files.
     /// Called after repository creation or if needed files are missing.
+    /// Retries if the branch isn't ready yet.
     /// </summary>
     public async Task<bool> ScaffoldRepositoryAsync()
     {
         try
         {
+            var createdAny = false;
+
+            // Determine the actual default branch (could be 'master' if auto_init defaulted there)
+            var branch = await ResolveDefaultBranchAsync();
+
             // Create .gitkeep in articles/drafts and articles/published so the
             // directories exist in the repository
             var success = await CreateFileIfMissingAsync(
-                branch: _defaultBranch,
+                branch: branch,
                 path: "articles/drafts/.gitkeep",
                 content: "# Draft articles from Aqevryn research pipeline\n");
-            if (!success) success = await CreateFileIfMissingAsync(
-                branch: _defaultBranch,
+            if (success) createdAny = true;
+
+            success = await CreateFileIfMissingAsync(
+                branch: branch,
                 path: "articles/published/.gitkeep",
                 content: "# Published articles — merged after human approval\n");
+            if (success) createdAny = true;
 
             // Create website scaffolding
             await CreateFileIfMissingAsync(
-                branch: _defaultBranch,
+                branch: branch,
                 path: "website/README.md",
                 content: "# Aqevryn Research Website\n\nGenerated by the Aqevryn pipeline. See /methodology.html for our research methodology.\n");
 
-            return success;
+            return createdAny;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to scaffold repository");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the actual default branch name of the repository.
+    /// </summary>
+    private async Task<string> ResolveDefaultBranchAsync()
+    {
+        try
+        {
+            using var http = CreateClient();
+            var response = await http.GetAsync($"{ApiBase}/repos/{_owner}/{_repo}");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("default_branch", out var branch))
+                {
+                    return branch.GetString() ?? _defaultBranch;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not resolve default branch, falling back to configured branch");
+        }
+        return _defaultBranch;
+    }
+
+    /// <summary>
+    /// Gets the SHA of a branch. Returns null if branch doesn't exist or on error.
+    /// </summary>
+    public async Task<string?> GetBranchShaAsync(string branch)
+    {
+        try
+        {
+            using var http = CreateClient();
+            var response = await http.GetAsync($"{ApiBase}/repos/{_owner}/{_repo}/git/ref/heads/{branch}");
+            if (!response.IsSuccessStatusCode) return null;
+            var json = await response.Content.ReadAsStringAsync();
+            var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("object").GetProperty("sha").GetString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "GetBranchShaAsync failed for branch '{Branch}'", branch);
+            return null;
         }
     }
 
@@ -180,8 +284,9 @@ public class GitHubRepositoryManager
 
             return response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogDebug(ex, "CreateFileIfMissingAsync failed for '{Path}'", path);
             return false;
         }
     }
@@ -193,13 +298,21 @@ public class GitHubRepositoryManager
         {
             using var http = CreateClient();
             var response = await http.GetAsync($"{ApiBase}/users/{owner}");
-            if (!response.IsSuccessStatusCode) return false;
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogDebug("IsOrganizationAsync: users endpoint returned {Status}", response.StatusCode);
+                return false;
+            }
             var json = await response.Content.ReadAsStringAsync();
             var doc = JsonDocument.Parse(json);
-            return doc.RootElement.TryGetProperty("type", out var type) && type.GetString() == "Organization";
+            var isOrg = doc.RootElement.TryGetProperty("type", out var type) && type.GetString() == "Organization";
+            var ownerType = isOrg ? "an organization" : "a user";
+            _logger.LogDebug("Owner '{Owner}' is {OwnerType}", owner, ownerType);
+            return isOrg;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogDebug(ex, "IsOrganizationAsync failed for '{Owner}'", owner);
             return false;
         }
     }

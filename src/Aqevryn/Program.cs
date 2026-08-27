@@ -35,10 +35,10 @@ class Program
         {
             return commandArgs[0] switch
             {
-                "run" => await RunPipeline(settings, dryRun),
-                "discover" => await RunDiscover(settings),
-                "analyze" => await RunAnalyze(settings),
-                "research" => await RunResearch(settings, commandArgs.Length > 1 ? commandArgs[1] : null),
+                "run" => await RunPipeline(settings, dryRun, verbose),
+                "discover" => await RunDiscover(settings, verbose),
+                "analyze" => await RunAnalyze(settings, verbose),
+                "research" => await RunResearch(settings, verbose),
                 "write" => await RunWrite(settings),
                 "review" => await RunReview(settings),
                 "publish" => await RunPublish(settings, dryRun),
@@ -46,6 +46,7 @@ class Program
                 "build-site" => await RunBuildSite(),
                 "scheduler" => await RunScheduler(settings),
                 "api" => await RunApi(),
+                "test-github" => await RunTestGitHub(settings),
                 _ => ShowHelpAndReturn(1),
             };
         }
@@ -56,48 +57,132 @@ class Program
         }
     }
 
-    static async Task<int> RunPipeline(AqevrynSettings settings, bool dryRun)
+    static async Task<int> RunPipeline(AqevrynSettings settings, bool dryRun, bool verbose)
     {
-        Console.WriteLine("Aqevryn starting...");
-        Console.WriteLine("[1/9] Collecting technology sources...");
-        Console.WriteLine("[2/9] Extracting topics...");
-        Console.WriteLine("[3/9] Clustering...");
-        Console.WriteLine("[4/9] Trend analysis...");
-        Console.WriteLine("[5/9] Researchability...");
-        Console.WriteLine("[6/9] Market viability...");
-        Console.WriteLine("[7/9] Researching...");
-        Console.WriteLine("[8/9] Generating article...");
-        Console.WriteLine("[9/9] Editorial review...");
+        Console.WriteLine("╔══════════════════════════════════════╗");
+        Console.WriteLine("║        Aqevryn Research Pipeline     ║");
+        Console.WriteLine("╚══════════════════════════════════════╝");
+        Console.WriteLine();
 
         var ctx = new PipelineContext { DryRun = dryRun };
         var pipeline = new Pipeline(ctx, settings);
-        var result = await pipeline.RunAsync();
 
-        if (result.Stage == "COMPLETED")
+        // Stage 1: Discover
+        Console.Write("• [1/9] Collecting technology sources... ");
+        await pipeline._StageDiscover();
+        Console.WriteLine($"{ctx.Articles.Count} new articles, {ctx.Topics.Count} topics");
+
+        // Stage 2: Analyze
+        Console.Write("• [2/9] Extracting topics... ");
+        Console.Write("• [3/9] Clustering... ");
+        Console.Write("• [4/9] Trend analysis... ");
+        Console.Write("• [5/9] Researchability... ");
+        Console.Write("• [6/9] Market viability... ");
+        Console.WriteLine("done.");
+        if (ctx.Articles.Count > 0)
         {
-            Console.WriteLine("Pipeline completed successfully.");
-            if (result.SelectedTopic != null)
-                Console.WriteLine($"\nTopic: {result.SelectedTopic.Topic}\nFinal Score: {result.SelectedTopic.FinalScore}");
-            if (result.PublishPrUrl != null)
-                Console.WriteLine($"Pull Request: {result.PublishPrUrl}");
-            return 0;
+            await pipeline._StageAnalyze();
+            if (ctx.SelectedTopic != null)
+                Console.WriteLine($"  → Selected: \"{ctx.SelectedTopic.Topic}\" (Score: {ctx.SelectedTopic.FinalScore})");
+            else
+                Console.WriteLine("  → No topic met the selection criteria.");
         }
-        Console.WriteLine($"Pipeline failed at stage {result.Stage}: {result.Error}");
-        return 1;
+        else
+        {
+            Console.WriteLine("  → No articles collected — skipping analysis.");
+        }
+
+        // Stage 3: Research
+        Console.Write("• [7/9] Researching... ");
+        if (ctx.SelectedTopic != null)
+        {
+            await pipeline._StageResearch();
+            Console.WriteLine($"{ctx.ResearchResult?.SourcesAnalyzed.Count ?? 0} sources, {ctx.ResearchResult?.Findings.Count ?? 0} findings");
+        }
+        else
+        {
+            Console.WriteLine("skipped (no topic).");
+        }
+
+        // Stage 4: Write
+        Console.Write("• [8/9] Generating article... ");
+        if (ctx.ResearchResult != null)
+        {
+            await pipeline._StageWrite();
+            Console.WriteLine($"\"{ctx.GeneratedArticle?.Title ?? "untitled"}\"");
+        }
+        else
+        {
+            Console.WriteLine("skipped (no research).");
+        }
+
+        // Stage 5: Review
+        Console.Write("• [9/9] Editorial review... ");
+        if (ctx.GeneratedArticle != null)
+        {
+            await pipeline._StageReview();
+            Console.WriteLine($"Score: {ctx.EditorialReview?.OverallScore ?? 0} — {ctx.EditorialReview?.PublishRecommendation ?? "N/A"}");
+        }
+        else
+        {
+            Console.WriteLine("skipped (no article).");
+        }
+
+        // Stage 6: Publish
+        Console.Write("• Publishing... ");
+        if (ctx.EditorialReview?.PublishRecommendation == "APPROVE" && ctx.GeneratedArticle != null)
+        {
+            await pipeline._StagePublish();
+            if (ctx.PublishPrUrl != null)
+                Console.WriteLine($"PR created: {ctx.PublishPrUrl}");
+            else if (ctx.PublishSuccess == true)
+                Console.WriteLine("Branch created, awaiting human approval.");
+            else
+                Console.WriteLine("Skipped (dry run or no GitHub token).");
+        }
+        else
+        {
+            Console.WriteLine("Article not approved for publication.");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("╔══════════════════════════════════════╗");
+        Console.WriteLine("║        Pipeline Completed             ║");
+        Console.WriteLine("╚══════════════════════════════════════╝");
+
+        if (verbose && ctx.SelectedTopic != null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Summary:");
+            Console.WriteLine($"  Topic:          {ctx.SelectedTopic.Topic}");
+            Console.WriteLine($"  Final Score:    {ctx.SelectedTopic.FinalScore}");
+            Console.WriteLine($"  Trend Score:    {ctx.SelectedTopic.TrendScore}");
+            Console.WriteLine($"  Researchability: {ctx.SelectedTopic.ResearchabilityScore}");
+            Console.WriteLine($"  Market Viability: {ctx.SelectedTopic.MarketViabilityScore}");
+            Console.WriteLine($"  Articles:       {ctx.Articles.Count}");
+            Console.WriteLine($"  Editorial Score: {ctx.EditorialReview?.OverallScore ?? 0}");
+        }
+
+        return 0;
     }
 
-    static async Task<int> RunDiscover(AqevrynSettings settings)
+    static async Task<int> RunDiscover(AqevrynSettings settings, bool verbose)
     {
         Console.WriteLine("Collecting technology sources...");
         var ctx = new PipelineContext { DryRun = true };
         var pipeline = new Pipeline(ctx, settings);
-        await pipeline.RunAsync();
-        Console.WriteLine($"{ctx.Articles.Count} new articles found");
-        Console.WriteLine($"{ctx.Topics.Count} candidate topics");
+        await pipeline._StageDiscover();
+        Console.WriteLine($"  {ctx.Articles.Count} new articles found");
+        Console.WriteLine($"  {ctx.Topics.Count} candidate topics");
+        if (verbose && ctx.Topics.Count > 0)
+        {
+            foreach (var topic in ctx.Topics)
+                Console.WriteLine($"    - {topic.GetValueOrDefault("topic")}");
+        }
         return 0;
     }
 
-    static async Task<int> RunAnalyze(AqevrynSettings settings)
+    static async Task<int> RunAnalyze(AqevrynSettings settings, bool verbose)
     {
         Console.WriteLine("Analyzing topics...");
         var ctx = new PipelineContext { DryRun = true };
@@ -106,23 +191,31 @@ class Program
         await pipeline._StageAnalyze();
         if (ctx.SelectedTopic != null)
         {
-            Console.WriteLine($"Top topic: {ctx.SelectedTopic.Topic}");
-            Console.WriteLine($"Trend Score: {ctx.SelectedTopic.TrendScore}");
-            Console.WriteLine($"Researchability: {ctx.SelectedTopic.ResearchabilityScore}");
-            Console.WriteLine($"Market Viability: {ctx.SelectedTopic.MarketViabilityScore}");
-            Console.WriteLine($"Final Score: {ctx.SelectedTopic.FinalScore}");
+            Console.WriteLine($"  Top topic: {ctx.SelectedTopic.Topic}");
+            Console.WriteLine($"  Trend Score: {ctx.SelectedTopic.TrendScore}");
+            Console.WriteLine($"  Researchability: {ctx.SelectedTopic.ResearchabilityScore}");
+            Console.WriteLine($"  Market Viability: {ctx.SelectedTopic.MarketViabilityScore}");
+            Console.WriteLine($"  Final Score: {ctx.SelectedTopic.FinalScore}");
+        }
+        else
+        {
+            Console.WriteLine("  No topic selected.");
         }
         return 0;
     }
 
-    static async Task<int> RunResearch(AqevrynSettings settings, string? topic)
+    static async Task<int> RunResearch(AqevrynSettings settings, bool verbose)
     {
-        Console.WriteLine($"Researching topic: {topic ?? "auto-selected"}");
-        var ctx = new PipelineContext { DryRun = true, Topic = topic };
+        Console.WriteLine("Researching...");
+        var ctx = new PipelineContext { DryRun = true };
         var pipeline = new Pipeline(ctx, settings);
-        await pipeline.RunAsync();
+        await pipeline._StageDiscover();
+        await pipeline._StageAnalyze();
+        await pipeline._StageResearch();
         if (ctx.ResearchResult != null)
-            Console.WriteLine($"{ctx.ResearchResult.SourcesAnalyzed.Count} sources analyzed, {ctx.ResearchResult.Findings.Count} findings");
+            Console.WriteLine($"  {ctx.ResearchResult.SourcesAnalyzed.Count} sources analyzed, {ctx.ResearchResult.Findings.Count} findings");
+        else
+            Console.WriteLine("  No research performed.");
         return 0;
     }
 
@@ -130,9 +223,14 @@ class Program
     {
         var ctx = new PipelineContext { DryRun = true };
         var pipeline = new Pipeline(ctx, settings);
-        await pipeline.RunAsync();
+        await pipeline._StageDiscover();
+        await pipeline._StageAnalyze();
+        await pipeline._StageResearch();
+        await pipeline._StageWrite();
         if (ctx.GeneratedArticle != null)
             Console.WriteLine($"Article generated: {ctx.GeneratedArticle.Title}");
+        else
+            Console.WriteLine("No article generated.");
         return 0;
     }
 
@@ -140,11 +238,19 @@ class Program
     {
         var ctx = new PipelineContext { DryRun = true };
         var pipeline = new Pipeline(ctx, settings);
-        await pipeline.RunAsync();
+        await pipeline._StageDiscover();
+        await pipeline._StageAnalyze();
+        await pipeline._StageResearch();
+        await pipeline._StageWrite();
+        await pipeline._StageReview();
         if (ctx.EditorialReview != null)
         {
             Console.WriteLine($"Editorial Score: {ctx.EditorialReview.OverallScore}");
             Console.WriteLine($"Recommendation: {ctx.EditorialReview.PublishRecommendation}");
+        }
+        else
+        {
+            Console.WriteLine("No review performed.");
         }
         return 0;
     }
@@ -155,9 +261,15 @@ class Program
         if (dryRun) { Console.WriteLine("Dry-run: skipping publication"); return 0; }
         var ctx = new PipelineContext { DryRun = dryRun };
         var pipeline = new Pipeline(ctx, settings);
-        await pipeline.RunAsync();
+        await pipeline._StageDiscover();
+        await pipeline._StageAnalyze();
+        await pipeline._StageResearch();
+        await pipeline._StageWrite();
+        await pipeline._StageReview();
+        await pipeline._StagePublish();
         if (ctx.PublishPrUrl != null) Console.WriteLine($"PR: {ctx.PublishPrUrl}");
-        else Console.WriteLine("No article to publish");
+        else if (ctx.PublishSuccess == true) Console.WriteLine("Branch created.");
+        else Console.WriteLine("No article to publish.");
         return 0;
     }
 
@@ -192,6 +304,48 @@ class Program
         return 0;
     }
 
+    static async Task<int> RunTestGitHub(AqevrynSettings settings)
+    {
+        Console.WriteLine("Testing GitHub connection...");
+        Console.WriteLine($"  Owner: {settings.GitHubOwner}");
+        Console.WriteLine($"  Repo:  {settings.GitHubRepository}");
+        Console.WriteLine($"  Token: {settings.GitHubToken[..Math.Min(10, settings.GitHubToken.Length)]}...");
+        Console.WriteLine();
+
+        var mgr = new Publishing.GitHubRepositoryManager(
+            settings.GitHubToken,
+            settings.GitHubOwner,
+            settings.GitHubRepository,
+            settings.GitHubDefaultBranch
+        );
+
+        Console.WriteLine("Checking if repository exists...");
+        var exists = await mgr.RepositoryExistsAsync();
+        Console.WriteLine($"  Repository exists: {exists}");
+
+        if (!exists)
+        {
+            Console.WriteLine("Creating repository...");
+            var created = await mgr.EnsureRepositoryAsync();
+            Console.WriteLine($"  Repository created: {created}");
+
+            if (created)
+            {
+                Console.WriteLine("Scaffolding directories...");
+                await mgr.ScaffoldRepositoryAsync();
+                Console.WriteLine("  Done.");
+            }
+            else
+            {
+                Console.WriteLine("  FAILED! Check your token has 'repo' scope.");
+                return 1;
+            }
+        }
+
+        Console.WriteLine($"\n  View at: https://github.com/{settings.GitHubOwner}/{settings.GitHubRepository}");
+        return 0;
+    }
+
     static void ShowHelp()
     {
         Console.WriteLine("Aqevryn — Autonomous Technology Research & Publishing Agent");
@@ -210,6 +364,7 @@ class Program
         Console.WriteLine("  api          Start the API server");
         Console.WriteLine("  health       Check application health");
         Console.WriteLine("  build-site   Build the static research website");
+        Console.WriteLine("  test-github  Test GitHub connection and create repository if needed");
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --dry-run    Run without publishing");
@@ -220,7 +375,6 @@ class Program
     static int ShowHelpAndReturn(int code) { ShowHelp(); return code; }
 }
 
-// Extension methods to access private methods for CLI commands
 public static class PipelineExtensions
 {
     public static async Task _StageDiscover(this Pipeline pipeline)
@@ -234,6 +388,38 @@ public static class PipelineExtensions
     public static async Task _StageAnalyze(this Pipeline pipeline)
     {
         var method = typeof(Pipeline).GetMethod("StageAnalyzeAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (method != null)
+            await (Task)method.Invoke(pipeline, null)!;
+    }
+
+    public static async Task _StageResearch(this Pipeline pipeline)
+    {
+        var method = typeof(Pipeline).GetMethod("StageResearchAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (method != null)
+            await (Task)method.Invoke(pipeline, null)!;
+    }
+
+    public static async Task _StageWrite(this Pipeline pipeline)
+    {
+        var method = typeof(Pipeline).GetMethod("StageWriteAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (method != null)
+            await (Task)method.Invoke(pipeline, null)!;
+    }
+
+    public static async Task _StageReview(this Pipeline pipeline)
+    {
+        var method = typeof(Pipeline).GetMethod("StageReviewAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (method != null)
+            await (Task)method.Invoke(pipeline, null)!;
+    }
+
+    public static async Task _StagePublish(this Pipeline pipeline)
+    {
+        var method = typeof(Pipeline).GetMethod("StagePublishAsync",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         if (method != null)
             await (Task)method.Invoke(pipeline, null)!;

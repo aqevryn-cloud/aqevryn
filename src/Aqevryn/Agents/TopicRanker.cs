@@ -14,7 +14,7 @@ public class TopicRanker
 
     public TopicRanker(double trendWeight = 0.25, double researchabilityWeight = 0.25,
         double marketWeight = 0.20, double noveltyWeight = 0.15, double technicalWeight = 0.15,
-        double minResearchability = 30, int minEvidence = 3)
+        double minResearchability = 0, int minEvidence = 0)
     {
         _trendWeight = trendWeight; _researchabilityWeight = researchabilityWeight;
         _marketWeight = marketWeight; _noveltyWeight = noveltyWeight; _technicalWeight = technicalWeight;
