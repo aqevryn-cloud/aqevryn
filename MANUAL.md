@@ -28,6 +28,21 @@
 
 Aqevryn is an autonomous technology research system that:
 
+### What You Need (Zero Paid Subscriptions)
+
+| Service | Required? | Cost | Notes |
+|---------|-----------|------|-------|
+| **GitHub token** | ✅ Yes | Free | Create at github.com/settings/tokens (scope: `repo`) |
+| **Internet connection** | ✅ Yes | Free | For fetching RSS, arXiv, HN, Reddit |
+| **Docker** | ✅ Yes | Free | For running the application |
+| **LLM API (OpenAI/etc.)** | ❌ No | Free | Agents work deterministically without it |
+| **Tavily Search** | ❌ No | Free | Not used by any code |
+| **PostgreSQL** | ✅ Yes | Free | Runs in Docker container |
+
+All source adapters (RSS, arXiv, Hacker News, Reddit) use **public APIs** that require no API keys. The GitHub source adapter uses your existing GitHub token.
+
+The pipeline runs fully deterministically — no AI/LLM calls are needed for topic discovery, clustering, trend analysis, researchability scoring, market analysis, article writing, or editorial review.
+
 1. **Collects** content from technology sources (RSS, arXiv, GitHub, Hacker News, Reddit)
 2. **Discovers** trending technology topics
 3. **Analyzes** trends, researchability, and market viability
