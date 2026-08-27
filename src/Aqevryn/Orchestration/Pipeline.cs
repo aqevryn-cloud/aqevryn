@@ -12,11 +12,31 @@ public class Pipeline
     private readonly PipelineContext _ctx;
     private readonly AqevrynSettings _settings;
     private readonly ILogger<Pipeline> _logger;
+    private readonly LLMClient? _llm;
 
     public Pipeline(PipelineContext ctx, AqevrynSettings settings, ILogger<Pipeline>? logger = null)
     {
         _ctx = ctx; _settings = settings;
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<Pipeline>.Instance;
+        _llm = CreateLLM();
+    }
+
+    private LLMClient? CreateLLM()
+    {
+        if (_settings.LlmProvider == "mock" || string.IsNullOrEmpty(_settings.LlmApiKey))
+            return null;
+        try
+        {
+            var llm = new LLMClient(_settings);
+            _logger.LogInformation("LLM client created: provider={Provider}, model={Model}",
+                _settings.LlmProvider, _settings.LlmModel);
+            return llm;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to create LLM client");
+            return null;
+        }
     }
 
     public async Task<PipelineContext> RunAsync()
@@ -77,7 +97,7 @@ public class Pipeline
         if (_ctx.Articles.Count > 0)
         {
             ActivityRegistry.LogStart("topic_discovery", "topic_discovery", $"{_ctx.Articles.Count} articles");
-            var discovery = new TopicDiscoveryAgent();
+            var discovery = new TopicDiscoveryAgent(_llm);
             var results = await discovery.DiscoverAsync(_ctx.Articles);
             _ctx.Topics = results.Select(r => new Dictionary<string, object?>
             {
@@ -178,7 +198,7 @@ public class Pipeline
         var topicArticles = _ctx.Articles.Where(a =>
             $"{a.GetValueOrDefault("title")} {a.GetValueOrDefault("summary")}".Contains(topicName, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        var planner = new ResearchPlannerAgent();
+        var planner = new ResearchPlannerAgent(_llm);
         _ctx.ResearchPlan = await planner.CreatePlanAsync(topicName,
             _ctx.ResearchabilityScores.GetValueOrDefault(topicName),
             _ctx.TrendScores.GetValueOrDefault(topicName),
@@ -186,7 +206,7 @@ public class Pipeline
         ActivityRegistry.LogComplete("research_planner", "research", $"Question: {_ctx.ResearchPlan.ResearchQuestion}");
 
         ActivityRegistry.LogStart("deep_researcher", "research", $"Researching: {topicName}");
-        var researcher = new ResearchAgent();
+        var researcher = new ResearchAgent(_llm);
         _ctx.ResearchResult = await researcher.ResearchAsync(_ctx.ResearchPlan.ResearchQuestion, topicName, topicArticles);
 
         _logger.LogInformation("Research complete: {Count} sources, {Findings} findings",
@@ -199,7 +219,7 @@ public class Pipeline
     {
         if (_ctx.ResearchResult == null) return;
         ActivityRegistry.LogStart("article_writer", "write", $"Topic: {_ctx.SelectedTopic?.Topic}");
-        var writer = new ArticleWriterAgent();
+        var writer = new ArticleWriterAgent(_llm);
         _ctx.GeneratedArticle = await writer.WriteAsync(_ctx.SelectedTopic?.Topic ?? "Research Topic", _ctx.ResearchResult);
         _logger.LogInformation("Article written: {Title}", _ctx.GeneratedArticle.Title);
         ActivityRegistry.LogComplete("article_writer", "write", $"Title: {_ctx.GeneratedArticle.Title}");
