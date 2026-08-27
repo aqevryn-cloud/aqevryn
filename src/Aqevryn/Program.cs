@@ -46,6 +46,7 @@ class Program
                 "build-site" => await RunBuildSite(),
                 "scheduler" => await RunScheduler(settings),
                 "api" => await RunApi(),
+                "web" => await RunWeb(),
                 "test-github" => await RunTestGitHub(settings),
                 "dashboard" => RunDashboard(settings),
                 "watch" => await RunWatch(settings),
@@ -307,6 +308,13 @@ class Program
         return 0;
     }
 
+    static async Task<int> RunWeb()
+    {
+        Console.WriteLine("Web dashboard starting on http://localhost:8080 ...");
+        await Api.WebDashboard.RunAsync(8080);
+        return 0;
+    }
+
     static async Task<int> RunTestGitHub(AqevrynSettings settings)
     {
         Console.WriteLine("Testing GitHub connection...");
@@ -466,6 +474,7 @@ class Program
         Console.WriteLine("  publish      Publish (create PR or auto-publish)");
         Console.WriteLine("  scheduler    Run the scheduler loop");
         Console.WriteLine("  api          Start the API server");
+        Console.WriteLine("  web          Start the web dashboard (port 8080)");
         Console.WriteLine("  health       Check application health");
         Console.WriteLine("  build-site   Build the static research website");
         Console.WriteLine("  test-github  Test GitHub connection and create repository if needed");

@@ -110,6 +110,44 @@ public class Pipeline
                 $"{_ctx.Topics.Count} topics discovered",
                 $"Topics: {string.Join(", ", _ctx.Topics.Select(t => t.GetValueOrDefault("topic")))}");
         }
+
+        // Save articles and topics to JSON for web dashboard
+        SaveDataForWeb();
+    }
+
+    private void SaveDataForWeb()
+    {
+        try
+        {
+            var dataDir = Path.Combine(AppContext.BaseDirectory, "webdata");
+            Directory.CreateDirectory(dataDir);
+
+            var articles = _ctx.Articles.Select(a => new Dictionary<string, object?>
+            {
+                ["title"] = a.GetValueOrDefault("title")?.ToString()?[..Math.Min(150, a.GetValueOrDefault("title")?.ToString()?.Length ?? 0)],
+                ["url"] = a.GetValueOrDefault("url"),
+                ["source_name"] = a.GetValueOrDefault("source_name"),
+                ["source_type"] = a.GetValueOrDefault("source_type"),
+                ["category"] = a.GetValueOrDefault("category"),
+                ["summary"] = a.GetValueOrDefault("summary")?.ToString()?[..Math.Min(300, a.GetValueOrDefault("summary")?.ToString()?.Length ?? 0)],
+            }).ToList();
+
+            var topics = _ctx.Topics.Select(t => new Dictionary<string, object?>
+            {
+                ["topic"] = t.GetValueOrDefault("topic"),
+                ["summary"] = t.GetValueOrDefault("summary"),
+                ["category"] = t.GetValueOrDefault("category"),
+                ["evidence_count"] = (t.GetValueOrDefault("evidence") as List<object>)?.Count ?? 0,
+            }).ToList();
+
+            var payload = new { articles, topics, collected_at = DateTime.UtcNow.ToString("o") };
+            var json = System.Text.Json.JsonSerializer.Serialize(payload, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(Path.Combine(dataDir, "pipeline_data.json"), json);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to save web data");
+        }
     }
 
     private async Task StageAnalyzeAsync()
