@@ -17,7 +17,7 @@ services:
       - aqevryn_data:/app/data
       - aqevryn_articles:/app/articles
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:9888:9888"
     deploy:
       resources:
         limits:

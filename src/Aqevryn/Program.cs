@@ -310,8 +310,8 @@ class Program
 
     static async Task<int> RunWeb()
     {
-        Console.WriteLine("Web dashboard starting on http://localhost:8080 ...");
-        await Api.WebDashboard.RunAsync(8080);
+        Console.WriteLine("Web dashboard starting on http://localhost:9888 ...");
+        await Api.WebDashboard.RunAsync(9888);
         return 0;
     }
 
@@ -474,7 +474,7 @@ class Program
         Console.WriteLine("  publish      Publish (create PR or auto-publish)");
         Console.WriteLine("  scheduler    Run the scheduler loop");
         Console.WriteLine("  api          Start the API server");
-        Console.WriteLine("  web          Start the web dashboard (port 8080)");
+        Console.WriteLine("  web          Start the web dashboard (port 9888)");
         Console.WriteLine("  health       Check application health");
         Console.WriteLine("  build-site   Build the static research website");
         Console.WriteLine("  test-github  Test GitHub connection and create repository if needed");

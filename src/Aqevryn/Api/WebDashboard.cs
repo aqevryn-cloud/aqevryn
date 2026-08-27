@@ -14,7 +14,7 @@ public class WebDashboard
     private readonly int _port;
     private readonly string _version;
 
-    public WebDashboard(int port = 8080, string version = "0.1.0")
+    public WebDashboard(int port = 9888, string version = "0.1.0")
     {
         _port = port;
         _version = version;
@@ -708,7 +708,7 @@ public class WebDashboard
 </body></html>";
     }
 
-    public static async Task RunAsync(int port = 8080)
+    public static async Task RunAsync(int port = 9888)
     {
         var dashboard = new WebDashboard(port: port);
         await dashboard.StartAsync();
