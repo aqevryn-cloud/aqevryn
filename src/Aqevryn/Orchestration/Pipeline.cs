@@ -233,8 +233,57 @@ public class Pipeline
         var topicName = _ctx.SelectedTopic.Topic;
         ActivityRegistry.LogStart("research_planner", "research", $"Topic: {topicName}");
 
+        // Find the cluster that corresponds to this topic to get member topics
+        var matchedCluster = _ctx.Clusters.FirstOrDefault(c =>
+            c.GetValueOrDefault("canonical_topic")?.ToString() == topicName);
+
+        // Build a broader search: use member topic names and their keywords
+        var searchTerms = new List<string> { topicName };
+        if (matchedCluster?.GetValueOrDefault("member_topics") is List<object> members)
+        {
+            foreach (var m in members)
+            {
+                var s = m?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(s)) searchTerms.Add(s);
+            }
+        }
+        // Also add the aliases if available
+        if (matchedCluster?.GetValueOrDefault("aliases") is List<object> aliases)
+        {
+            foreach (var a in aliases)
+            {
+                var s = a?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(s)) searchTerms.Add(s);
+            }
+        }
+
+        // Match articles against all search terms (broad match)
         var topicArticles = _ctx.Articles.Where(a =>
-            $"{a.GetValueOrDefault("title")} {a.GetValueOrDefault("summary")}".Contains(topicName, StringComparison.OrdinalIgnoreCase)).ToList();
+        {
+            var text = $"{a.GetValueOrDefault("title")} {a.GetValueOrDefault("summary")}";
+            foreach (var term in searchTerms)
+            {
+                // Check each word in the search term
+                foreach (var word in term.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (word.Length > 2 && text.Contains(word, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                if (text.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }).ToList();
+
+        // Fallback: if no articles matched, use all articles
+        if (topicArticles.Count == 0)
+        {
+            _logger.LogInformation("No articles matched topic '{Topic}', using all {Count} articles as fallback",
+                topicName, _ctx.Articles.Count);
+            topicArticles = _ctx.Articles;
+        }
+
+        _logger.LogInformation("Researching {Topic} with {Count} matched articles", topicName, topicArticles.Count);
 
         var planner = new ResearchPlannerAgent(_llm);
         _ctx.ResearchPlan = await planner.CreatePlanAsync(topicName,
