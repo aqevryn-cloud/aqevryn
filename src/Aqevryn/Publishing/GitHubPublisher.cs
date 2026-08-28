@@ -129,7 +129,7 @@ public class GitHubPublisher
         http.DefaultRequestHeaders.Add("User-Agent", "Aqevryn/1.0");
         var encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(content));
         var payload = JsonSerializer.Serialize(new { message = $"Research article: {path}", content = encoded, branch });
-        var response = await http.PutAsync($"{ApiBase}/repos/{_owner}/{_repo}/contents/articles/{path}",
+        var response = await http.PutAsync($"{ApiBase}/repos/{_owner}/{_repo}/contents/articles/published/{path}",
             new StringContent(payload, System.Text.Encoding.UTF8, "application/json"));
         if (!response.IsSuccessStatusCode) return null;
         var json = await response.Content.ReadAsStringAsync();
