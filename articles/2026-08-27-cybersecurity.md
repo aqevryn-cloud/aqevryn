@@ -2,10 +2,7 @@
 title: "Research: Cybersecurity — An Evidence-Based Analysis"
 description: "An evidence-based investigation into Cybersecurity, analyzing 2 sources."
 date: "2026-08-27"
-categories:
-  - System.String[]
-tags:
-  - System.String[]
+
 author: "Aqevryn Research"
 status: "draft"
 research_score: 81.5
