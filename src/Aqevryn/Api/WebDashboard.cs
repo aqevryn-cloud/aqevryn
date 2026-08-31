@@ -419,8 +419,7 @@ public class WebDashboard
 <head>
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-    <title>Aqevryn — Articles</title>
-    <link rel=""stylesheet"" href=""/style.css"">
+    <title>Aqevryn - Articles</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #1f2328; background: #f6f8fa; }
@@ -463,11 +462,11 @@ public class WebDashboard
             <div class=""tab"" onclick=""switchTab('topics')"">Topics</div>
             <div class=""tab"" onclick=""switchTab('completed')"">Concluded Research</div>
         </div>
-        
+
         <div id=""tab-articles"" class=""tab-content active"">
             <div id=""articles-list""><div class=""empty"">Loading articles...</div></div>
         </div>
-        
+
         <div id=""tab-topics"" class=""tab-content"">
             <div id=""topics-list""><div class=""empty"">Loading topics...</div></div>
         </div>
@@ -478,88 +477,100 @@ public class WebDashboard
     </div>
     <script>
         function switchTab(name) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelector(`.tab[onclick*='${name}']`).classList.add('active');
-            document.getElementById(`tab-${name}`).classList.add('active');
+            var tabs = document.querySelectorAll('.tab');
+            var contents = document.querySelectorAll('.tab-content');
+            for (var i = 0; i < tabs.length; i++) { tabs[i].classList.remove('active'); }
+            for (var i = 0; i < contents.length; i++) { contents[i].classList.remove('active'); }
+            var tab = document.querySelector('.tab[onclick*=' + name + ']');
+            if (tab) tab.classList.add('active');
+            var content = document.getElementById('tab-' + name);
+            if (content) content.classList.add('active');
         }
 
         async function loadArticles() {
             try {
-                const resp = await fetch('/api/articles');
-                const articles = await resp.json();
-                const list = document.getElementById('articles-list');
+                var resp = await fetch('/api/articles');
+                var articles = await resp.json();
+                var list = document.getElementById('articles-list');
                 if (articles.length === 0) {
-                    list.innerHTML = '<div class=""empty"">No articles collected yet. Run <code>aqevryn run</code> first.</div>';
+                    list.innerHTML = '<div class=""empty"">No articles collected yet. Run the pipeline first.</div>';
                     return;
                 }
-                list.innerHTML = articles.map(a => `
-                    <div class=""article-card"">
-                        <h3>${a.title}</h3>
-                        <div class=""meta"">
-                            <span>Source: ${a.source}</span>
-                            <span class=""badge"">${a.sourceType}</span>
-                            <span>${a.category}</span>
-                        </div>
-                        <p>${a.summary}</p>
-                    </div>
-                `).join('');
-            } catch(e) { console.error(e); }
+                var html = '';
+                for (var i = 0; i < articles.length; i++) {
+                    var a = articles[i];
+                    html += '<div class=""article-card"">';
+                    html += '<h3>' + (a.title || '') + '</h3>';
+                    html += '<div class=""meta"">';
+                    html += '<span>Source: ' + (a.source || '') + '</span>';
+                    html += '<span class=""badge"">' + (a.sourceType || '') + '</span>';
+                    html += '<span>' + (a.category || '') + '</span>';
+                    html += '</div>';
+                    html += '<p>' + (a.summary || '') + '</p>';
+                    html += '</div>';
+                }
+                list.innerHTML = html;
+            } catch(e) { console.error('Articles error:', e); }
         }
 
         async function loadTopics() {
             try {
-                const resp = await fetch('/api/topics');
-                const topics = await resp.json();
-                const list = document.getElementById('topics-list');
+                var resp = await fetch('/api/topics');
+                var topics = await resp.json();
+                var list = document.getElementById('topics-list');
                 if (topics.length === 0) {
                     list.innerHTML = '<div class=""empty"">No topics discovered yet.</div>';
                     return;
                 }
-                list.innerHTML = topics.map(t => `
-                    <div class=""article-card"">
-                        <h3>${t.topic}</h3>
-                        <div class=""meta"">
-                            <span class=""badge"">${t.category || 'technology'}</span>
-                            <span>${t.evidenceCount} articles</span>
-                        </div>
-                        <p>${t.summary}</p>
-                    </div>
-                `).join('');
-            } catch(e) { console.error(e); }
+                var html = '';
+                for (var i = 0; i < topics.length; i++) {
+                    var t = topics[i];
+                    html += '<div class=""article-card"">';
+                    html += '<h3>' + (t.topic || '') + '</h3>';
+                    html += '<div class=""meta"">';
+                    html += '<span class=""badge"">' + (t.category || 'technology') + '</span>';
+                    html += '<span>' + (t.evidenceCount || 0) + ' articles</span>';
+                    html += '</div>';
+                    html += '<p>' + (t.summary || '') + '</p>';
+                    html += '</div>';
+                }
+                list.innerHTML = html;
+            } catch(e) { console.error('Topics error:', e); }
+        }
+
+        async function loadCompletedResearch() {
+            try {
+                var resp = await fetch('/api/completed-research');
+                var research = await resp.json();
+                var list = document.getElementById('completed-research-list');
+                if (research.length === 0) {
+                    list.innerHTML = '<div class=""empty"">No completed research yet.</div>';
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < research.length; i++) {
+                    var r = research[i];
+                    html += '<div class=""article-card"">';
+                    html += '<h3>' + (r.topic || '') + '</h3>';
+                    html += '<div class=""meta"">';
+                    html += '<span>Score: ' + (r.finalScore || 0) + '</span>';
+                    html += '<span>Editorial: ' + (r.editorialScore || 0) + '</span>';
+                    html += '<span>' + (r.articleCount || 0) + ' articles</span>';
+                    html += '<span>' + (r.findingCount || 0) + ' findings</span>';
+                    html += '<span>' + (r.completedAt || '') + '</span>';
+                    html += '</div>';
+                    html += '<p>' + (r.researchQuestion || '') + '</p>';
+                    if (r.prUrl) html += '<p><a href=' + r.prUrl + ' target='_blank'>View Pull Request</a></p>';
+                    if (r.articleTitle) html += '<p><em>' + r.articleTitle + '</em></p>';
+                    html += '</div>';
+                }
+                list.innerHTML = html;
+            } catch(e) { console.error('Completed research error:', e); }
         }
 
         loadArticles();
         loadTopics();
         loadCompletedResearch();
-        
-        async function loadCompletedResearch() {
-            try {
-                const resp = await fetch('/api/completed-research');
-                const research = await resp.json();
-                const list = document.getElementById('completed-research-list');
-                if (research.length === 0) {
-                    list.innerHTML = '<div class=""empty"">No completed research yet.</div>';
-                    return;
-                }
-                list.innerHTML = research.map(function(r) {
-                    var html = '<div class=""article-card"">';
-                    html += '<h3>' + r.topic + '</h3>';
-                    html += '<div class=""meta"">';
-                    html += '<span>Score: ' + r.finalScore + '</span>';
-                    html += '<span>Editorial: ' + r.editorialScore + '</span>';
-                    html += '<span>' + r.articleCount + ' articles</span>';
-                    html += '<span>' + r.findingCount + ' findings</span>';
-                    html += '<span>' + r.completedAt + '</span>';
-                    html += '</div>';
-                    html += '<p>' + r.researchQuestion + '</p>';
-                    if (r.prUrl) html += '<p><a href='' + r.prUrl + ''>View Pull Request</a></p>';
-                    if (r.articleTitle) html += '<p><em>' + r.articleTitle + '</em></p>';
-                    html += '</div>';
-                    return html;
-                }).join('');
-            } catch(e) { console.error(e); }
-        }
     </script>
 </body>
 </html>";

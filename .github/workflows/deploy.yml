@@ -1,22 +1,22 @@
-name: Deploy Website to GitHub Pages
+name: Build and Deploy to GitHub Pages
 on:
   push:
     branches: [main]
     paths:
       - "articles/published/**"
 
-# Allow one concurrent deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 concurrency:
   group: "pages"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -26,26 +26,45 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Build static site
+      - name: Build site
         run: |
           mkdir -p _site/articles
 
-          # Generate home page
-          cat > _site/index.html << 'HTMLEOF'
+          # Home page
+          cat > _site/index.html << 'EOF'
           <!DOCTYPE html>
           <html lang="en">
           <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <title>Aqevryn Research</title>
-              <link rel="stylesheet" href="style.css">
+              <style>
+                  * { margin: 0; padding: 0; box-sizing: border-box; }
+                  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #1f2328; max-width: 800px; margin: 0 auto; padding: 20px; }
+                  header { border-bottom: 1px solid #d0d7de; padding: 20px 0; margin-bottom: 20px; }
+                  header h1 { font-size: 1.4em; }
+                  header nav a { color: #0969da; text-decoration: none; margin-right: 16px; }
+                  header nav a:hover { text-decoration: underline; }
+                  h1 { font-size: 1.8em; margin-bottom: 16px; }
+                  .hero { padding: 40px 0; text-align: center; }
+                  .hero h1 { font-size: 2.4em; }
+                  .hero p { font-size: 1.2em; color: #656d76; }
+                  .article-card { padding: 20px; border: 1px solid #d0d7de; border-radius: 6px; margin-bottom: 16px; }
+                  .article-card h2 { margin-bottom: 8px; }
+                  .article-card h2 a { color: #1f2328; text-decoration: none; }
+                  .article-card h2 a:hover { color: #0969da; }
+                  .article-card .meta { color: #656d76; font-size: 0.9em; margin-bottom: 8px; }
+                  footer { border-top: 1px solid #d0d7de; padding: 20px 0; margin-top: 40px; color: #656d76; }
+                  @media (max-width: 600px) { body { padding: 12px; } }
+              </style>
           </head>
           <body>
               <header>
+                  <h1>Aqevryn Research</h1>
                   <nav>
                       <a href="/">Home</a>
-                      <a href="/about.html">About</a>
-                      <a href="/methodology.html">Methodology</a>
+                      <a href="/about">About</a>
+                      <a href="/methodology">Methodology</a>
                   </nav>
               </header>
               <main>
@@ -53,132 +72,102 @@ jobs:
                       <h1>Aqevryn Research</h1>
                       <p>Autonomous technology intelligence, research, and analysis.</p>
                   </section>
-                  <section class="articles">
+                  <section>
                       <h2>Latest Research</h2>
-          HTMLEOF
+          EOF
 
-          # Add article links
+          # Add articles
+          found=0
           for f in articles/published/*.md; do
             if [ -f "$f" ]; then
-              # Extract title from front matter
-              title=$(grep "^title:" "$f" | head -1 | sed 's/^title: "*//' | sed 's/"$//' || echo "Research Article")
+              found=1
+              # Extract title from YAML front matter
+              title=$(grep "^title:" "$f" | head -1 | sed 's/^title: *"//' | sed 's/"$//' | sed "s/^title: *//")
               slug=$(basename "$f" .md)
-              echo "<article class='article-card'><h2><a href='/articles/${slug}.html'>${title}</a></h2></article>" >> _site/index.html
+              date=$(grep "^date:" "$f" | head -1 | sed 's/^date: *//')
+              echo "<article class='article-card'><h2><a href='/articles/${slug}.html'>${title}</a></h2><div class='meta'>${date}</div></article>" >> _site/index.html
               
-              # Convert markdown to simple HTML
-              cat > "_site/articles/${slug}.html" << ARTICLEEOF
+              # Create article page
+              cat > "_site/articles/${slug}.html" << EOF2
           <!DOCTYPE html>
           <html lang="en">
-          <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${title} — Aqevryn Research</title><link rel="stylesheet" href="/style.css"></head>
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>${title} - Aqevryn Research</title>
+              <link rel="stylesheet" href="/style.css">
+          </head>
           <body>
-              <header><nav><a href="/">Home</a><a href="/about.html">About</a><a href="/methodology.html">Methodology</a></nav></header>
-              <main><article class="research-article">
-          ARTICLEEOF
-              # Convert markdown body to HTML (basic conversion)
-              sed '1,/^---$/d' "$f" | sed 's/^## /<h2>/;s/^# /<h1>/;s/^### /<h3>/' | \
-                sed 's/<\/h[1-3]>//' | while IFS= read -r line; do
-                  if [[ $line == \<h* ]]; then
-                    echo "$line" >> "_site/articles/${slug}.html"
-                  elif [[ $line == -* ]]; then
-                    echo "<li>${line#- }</li>" >> "_site/articles/${slug}.html"
-                  elif [[ -z $line ]]; then
-                    echo "" >> "_site/articles/${slug}.html"
-                  else
-                    echo "<p>$line</p>" >> "_site/articles/${slug}.html"
-                  fi
-                done
-              echo "</article></main></body></html>" >> "_site/articles/${slug}.html"
+              <header>
+                  <h1><a href="/" style="color:inherit;text-decoration:none">Aqevryn Research</a></h1>
+                  <nav><a href="/">Home</a><a href="/about">About</a><a href="/methodology">Methodology</a></nav>
+              </header>
+              <main>
+                  <article>
+          EOF2
+              # Add body content - skip YAML front matter
+              sed '1,/^---$/d' "$f" >> "_site/articles/${slug}.html"
+              echo "</article></main><footer><p>Generated by Aqevryn</p></footer></body></html>" >> "_site/articles/${slug}.html"
             fi
           done
 
-          # Close home page
-          cat >> _site/index.html << 'HTMLEOF'
-                      </ul>
+          if [ "$found" = "0" ]; then
+            echo "<p>No articles published yet.</p>" >> _site/index.html
+          fi
+
+          cat >> _site/index.html << 'EOF'
                   </section>
               </main>
-              <footer><p>Generated by <a href="https://github.com/aqevryn-cloud/aqevryn">Aqevryn</a> — Autonomous Technology Research</p></footer>
-          </body>
-          </html>
-          HTMLEOF
-
-          # Generate about and methodology pages
-          cat > _site/about.html << 'HTMLEOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>About — Aqevryn Research</title><link rel="stylesheet" href="style.css"></head>
-          <body>
-              <header><nav><a href="/">Home</a><a href="/about.html">About</a><a href="/methodology.html">Methodology</a></nav></header>
-              <main>
-                  <h1>About Aqevryn</h1>
-                  <p>Aqevryn is an autonomous technology research and publishing system.</p>
-                  <p>It continuously discovers emerging technology developments, evaluates their significance, conducts evidence-based research, and publishes original findings.</p>
-                  <h2>Architecture</h2>
-                  <ul>
-                      <li>Source collection from RSS, arXiv, GitHub, Hacker News, and Reddit</li>
-                      <li>Topic discovery and trend analysis with 16 technology categories</li>
-                      <li>Evidence-based deep research with LLM enhancement</li>
-                      <li>Editorial review with 6-dimension quality scoring</li>
-                      <li>GitHub Pull Request workflow for human approval</li>
-                      <li>GitHub Pages for public website</li>
-                  </ul>
-              </main>
               <footer><p>Generated by <a href="https://github.com/aqevryn-cloud/aqevryn">Aqevryn</a></p></footer>
           </body>
           </html>
-          HTMLEOF
+          EOF
 
-          cat > _site/methodology.html << 'HTMLEOF'
+          # About page
+          cat > _site/about.html << 'EOF'
           <!DOCTYPE html>
           <html lang="en">
-          <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Methodology — Aqevryn Research</title><link rel="stylesheet" href="style.css"></head>
+          <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>About - Aqevryn Research</title><link rel="stylesheet" href="style.css"></head>
           <body>
-              <header><nav><a href="/">Home</a><a href="/about.html">About</a><a href="/methodology.html">Methodology</a></nav></header>
-              <main>
-                  <h1>Research Methodology</h1>
-                  <h2>How Topics Are Discovered</h2>
-                  <p>Topics are discovered through keyword-based extraction from collected articles across 16 technology categories, combined with LLM-based refinement.</p>
-                  <h2>How Sources Are Evaluated</h2>
-                  <p>Sources are classified by type: research papers (1.0), official documentation (0.95), engineering blogs (0.90), reputable publications (0.85), industry reports (0.80), community sources (0.55).</p>
-                  <h2>How Topics Are Scored</h2>
-                  <p>Topics are scored across five dimensions: Trend Score (25%), Researchability (25%), Market Viability (20%), Novelty (15%), Technical Significance (15%).</p>
-                  <h2>How Research Is Performed</h2>
-                  <p>Research uses a multi-stage pipeline: planning, source retrieval, evidence extraction, contradiction detection, LLM-enhanced analysis, and conclusion formation. Sources are prioritized by reliability.</p>
-                  <h2>How Citations Are Validated</h2>
-                  <p>Every claim is validated against its source. The system checks for source URL validity and detects potentially fabricated statistics.</p>
-                  <h2>Limitations</h2>
-                  <ul>
-                      <li>Aqevryn is an AI research assistant, not a human researcher</li>
-                      <li>Claims should be verified against original sources</li>
-                      <li>The technology landscape evolves rapidly</li>
-                  </ul>
-              </main>
-              <footer><p>Generated by <a href="https://github.com/aqevryn-cloud/aqevryn">Aqevryn</a></p></footer>
+              <header><h1><a href="/" style="color:inherit;text-decoration:none">Aqevryn Research</a></h1><nav><a href="/">Home</a><a href="/about">About</a><a href="/methodology">Methodology</a></nav></header>
+              <main><h1>About Aqevryn</h1><p>Aqevryn is an autonomous technology research and publishing system.</p><p>It continuously discovers emerging technology developments, evaluates their significance, conducts evidence-based research, and publishes original findings.</p></main>
+              <footer><p>Generated by Aqevryn</p></footer>
           </body>
           </html>
-          HTMLEOF
+          EOF
 
-          # Generate CSS
+          # Methodology page
+          cat > _site/methodology.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Methodology - Aqevryn Research</title><link rel="stylesheet" href="style.css"></head>
+          <body>
+              <header><h1><a href="/" style="color:inherit;text-decoration:none">Aqevryn Research</a></h1><nav><a href="/">Home</a><a href="/about">About</a><a href="/methodology">Methodology</a></nav></header>
+              <main><h1>Research Methodology</h1><p>Topics are discovered through keyword-based extraction from collected articles across 16 technology categories, combined with LLM-based refinement.</p><p>Sources are classified by type with configurable reliability scores.</p><p>Topics are scored across five dimensions with configurable weights.</p><p>Research uses a multi-stage pipeline: planning, source retrieval, evidence extraction, contradiction detection, and conclusion formation.</p><p>Every claim is validated against its source.</p></main>
+              <footer><p>Generated by Aqevryn</p></footer>
+          </body>
+          </html>
+          EOF
+
+          # CSS
           cat > _site/style.css << 'CSSEOF'
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #1f2328; max-width: 800px; margin: 0 auto; padding: 20px; background: #ffffff; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #1f2328; max-width: 800px; margin: 0 auto; padding: 20px; }
           header { border-bottom: 1px solid #d0d7de; padding: 20px 0; margin-bottom: 20px; }
           header nav a { color: #0969da; text-decoration: none; margin-right: 16px; }
-          header nav a:hover { text-decoration: underline; }
           h1 { font-size: 1.8em; margin-bottom: 16px; }
-          h2 { font-size: 1.4em; margin: 24px 0 12px; }
+          h2 { font-size: 1.4em; margin: 24px 0 12px; border-bottom: 1px solid #d0d7de; padding-bottom: 8px; }
+          p { margin-bottom: 16px; }
           .hero { padding: 40px 0; text-align: center; }
           .hero h1 { font-size: 2.4em; }
           .hero p { font-size: 1.2em; color: #656d76; }
           .article-card { padding: 20px; border: 1px solid #d0d7de; border-radius: 6px; margin-bottom: 16px; }
-          .article-card h2 { margin: 0; }
+          .article-card h2 { margin-bottom: 8px; }
           .article-card h2 a { color: #1f2328; text-decoration: none; }
           .article-card h2 a:hover { color: #0969da; }
-          .research-article h2 { border-bottom: 1px solid #d0d7de; padding-bottom: 8px; }
-          .research-article p { margin-bottom: 16px; }
+          .article-card .meta { color: #656d76; font-size: 0.9em; }
           footer { border-top: 1px solid #d0d7de; padding: 20px 0; margin-top: 40px; color: #656d76; }
+          pre { background: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; }
           @media (max-width: 600px) { body { padding: 12px; } h1 { font-size: 1.4em; } }
           CSSEOF
 
