@@ -219,7 +219,25 @@ public class Pipeline
         }).ToList();
 
         var ranker = new TopicRanker();
-        _ctx.RankedTopics = ranker.Rank(rankerTopics, _ctx.TrendScores, _ctx.ResearchabilityScores, _ctx.MarketScores, _ctx.ArticleCounts);
+
+        // Filter out already-researched topics so we don't repeat them
+        var availableTopics = rankerTopics.Where(t =>
+        {
+            var name = t.GetValueOrDefault("topic")?.ToString() ?? "";
+            var alreadyDone = CompletedResearchRegistry.IsAlreadyResearched(name);
+            if (alreadyDone)
+                _logger.LogInformation("Skipping already-researched topic: {Topic}", name);
+            return !alreadyDone;
+        }).ToList();
+
+        // If all topics have been researched, still allow the best one
+        if (availableTopics.Count == 0)
+        {
+            _logger.LogInformation("All topics have been researched. Selecting the best one anyway.");
+            availableTopics = rankerTopics;
+        }
+
+        _ctx.RankedTopics = ranker.Rank(availableTopics, _ctx.TrendScores, _ctx.ResearchabilityScores, _ctx.MarketScores, _ctx.ArticleCounts);
         var selected = ranker.SelectTopN(_ctx.RankedTopics, 1);
         _ctx.SelectedTopic = selected.FirstOrDefault();
 
@@ -360,11 +378,33 @@ public class Pipeline
             _logger.LogInformation("Publish result: {Success}, PR: {PrUrl}", result.Success, result.PrUrl);
             ActivityRegistry.LogComplete("publisher", "publish",
                 $"Branch: {result.Branch}, PR: {result.PrUrl ?? "none"}, Success: {result.Success}");
+
+            // Send email notification if PR was created
+            if (result.Success && !string.IsNullOrEmpty(result.PrUrl))
+            {
+                var notifier = new EmailNotifier();
+                if (notifier.IsConfigured)
+                {
+                    await notifier.SendPrNotificationAsync(topicName, result.PrUrl, _ctx.EditorialReview.OverallScore, _ctx.GeneratedArticle?.Title ?? "");
+                }
+            }
         }
         else
         {
             _logger.LogInformation("Dry run or no GitHub token — skipping publish");
             ActivityRegistry.LogComplete("publisher", "publish", "Skipped (dry run or no token)");
         }
+
+        // Record completed research to avoid repeating the same topic
+        CompletedResearchRegistry.Record(
+            topic: topicName,
+            researchQuestion: _ctx.ResearchPlan?.ResearchQuestion ?? "",
+            finalScore: _ctx.SelectedTopic?.FinalScore ?? 0,
+            editorialScore: _ctx.EditorialReview.OverallScore,
+            prUrl: _ctx.PublishPrUrl,
+            articleTitle: _ctx.GeneratedArticle?.Title,
+            articleCount: _ctx.Articles.Count,
+            findingCount: _ctx.ResearchResult?.Findings.Count ?? 0
+        );
     }
 }

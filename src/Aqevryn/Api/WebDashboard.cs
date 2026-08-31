@@ -120,6 +120,7 @@ public class WebDashboard
                 "/api/topics" => (200, "application/json", ToJson(GetTopics())),
                 "/api/activity" => (200, "application/json", ToJson(GetActivity())),
                 "/api/dashboard" => (200, "application/json", ToJson(GetDashboardData())),
+                "/api/completed-research" => (200, "application/json", ToJson(GetCompletedResearch())),
                 "/" or "/index.html" => (200, "text/html; charset=utf-8", GetIndexHtml()),
                 "/articles" or "/articles.html" => (200, "text/html; charset=utf-8", GetArticlesHtml()),
                 "/dashboard" or "/dashboard.html" => (200, "text/html; charset=utf-8", GetDashboardHtml()),
@@ -460,6 +461,7 @@ public class WebDashboard
         <div class=""tabs"">
             <div class=""tab active"" onclick=""switchTab('articles')"">Articles</div>
             <div class=""tab"" onclick=""switchTab('topics')"">Topics</div>
+            <div class=""tab"" onclick=""switchTab('completed')"">Concluded Research</div>
         </div>
         
         <div id=""tab-articles"" class=""tab-content active"">
@@ -468,6 +470,10 @@ public class WebDashboard
         
         <div id=""tab-topics"" class=""tab-content"">
             <div id=""topics-list""><div class=""empty"">Loading topics...</div></div>
+        </div>
+
+        <div id=""tab-completed"" class=""tab-content"">
+            <div id=""completed-research-list""><div class=""empty"">No completed research yet.</div></div>
         </div>
     </div>
     <script>
@@ -525,6 +531,35 @@ public class WebDashboard
 
         loadArticles();
         loadTopics();
+        loadCompletedResearch();
+        
+        async function loadCompletedResearch() {
+            try {
+                const resp = await fetch('/api/completed-research');
+                const research = await resp.json();
+                const list = document.getElementById('completed-research-list');
+                if (research.length === 0) {
+                    list.innerHTML = '<div class=""empty"">No completed research yet.</div>';
+                    return;
+                }
+                list.innerHTML = research.map(function(r) {
+                    var html = '<div class=""article-card"">';
+                    html += '<h3>' + r.topic + '</h3>';
+                    html += '<div class=""meta"">';
+                    html += '<span>Score: ' + r.finalScore + '</span>';
+                    html += '<span>Editorial: ' + r.editorialScore + '</span>';
+                    html += '<span>' + r.articleCount + ' articles</span>';
+                    html += '<span>' + r.findingCount + ' findings</span>';
+                    html += '<span>' + r.completedAt + '</span>';
+                    html += '</div>';
+                    html += '<p>' + r.researchQuestion + '</p>';
+                    if (r.prUrl) html += '<p><a href='' + r.prUrl + ''>View Pull Request</a></p>';
+                    if (r.articleTitle) html += '<p><em>' + r.articleTitle + '</em></p>';
+                    html += '</div>';
+                    return html;
+                }).join('');
+            } catch(e) { console.error(e); }
+        }
     </script>
 </body>
 </html>";
@@ -695,6 +730,23 @@ public class WebDashboard
     </div>
 </body>
 </html>";
+    }
+
+    private object GetCompletedResearch()
+    {
+        var completed = Common.CompletedResearchRegistry.GetAll();
+        return completed.Select(r => (object)new
+        {
+            topic = r.Topic,
+            researchQuestion = r.ResearchQuestion,
+            finalScore = r.FinalScore,
+            editorialScore = r.EditorialScore,
+            prUrl = r.PrUrl,
+            articleTitle = r.ArticleTitle,
+            articleCount = r.ArticleCount,
+            findingCount = r.FindingCount,
+            completedAt = r.CompletedAt.ToString("yyyy-MM-dd HH:mm"),
+        }).ToList();
     }
 
     private string GetErrorHtml(int code, string message)
