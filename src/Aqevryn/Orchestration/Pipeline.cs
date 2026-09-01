@@ -387,6 +387,41 @@ public class Pipeline
                 {
                     await notifier.SendPrNotificationAsync(topicName, result.PrUrl, _ctx.EditorialReview.OverallScore, _ctx.GeneratedArticle?.Title ?? "");
                 }
+
+                // Post to Moltbook if registered
+                try
+                {
+                    var moltbook = new Common.MoltbookClient();
+                    if (moltbook.IsRegistered)
+                    {
+                        var summary = _ctx.ResearchPlan?.ResearchQuestion ?? "";
+                        var findingsText = _ctx.ResearchResult?.Findings != null
+                            ? string.Join("\n", _ctx.ResearchResult.Findings.Take(5).Select(f => f.Claim))
+                            : "";
+                        var conclusionText = _ctx.ResearchResult?.Conclusions != null
+                            ? string.Join("\n", _ctx.ResearchResult.Conclusions.Take(3))
+                            : "";
+                        var mr = await moltbook.PostResearchAsync(
+                            topicName,
+                            _ctx.GeneratedArticle?.Title ?? "",
+                            result.PrUrl,
+                            summary,
+                            findings: findingsText,
+                            conclusion: conclusionText,
+                            editorialScore: _ctx.EditorialReview?.OverallScore ?? 0,
+                            articleCount: _ctx.Articles.Count,
+                            findingCount: _ctx.ResearchResult?.Findings.Count ?? 0
+                        );
+                        if (mr.Success)
+                            _logger.LogInformation("Posted to Moltbook: {PostId}", mr.PostId);
+                        else
+                            _logger.LogWarning("Failed to post to Moltbook: {Error}", mr.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Moltbook post failed");
+                }
             }
         }
         else

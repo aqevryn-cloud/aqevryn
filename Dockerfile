@@ -14,5 +14,6 @@ WORKDIR /app
 COPY --from=build /app .
 RUN groupadd -r aqevryn && useradd -r -g aqevryn -d /app -s /bin/bash aqevryn
 RUN chown -R aqevryn:aqevryn /app
+RUN mkdir -p /app/data && chown -R aqevryn:aqevryn /app/data
 USER aqevryn
 ENTRYPOINT ["dotnet", "Aqevryn.dll"]

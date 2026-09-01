@@ -48,6 +48,7 @@ class Program
                 "api" => await RunApi(),
                 "web" => await RunWeb(),
                 "test-github" => await RunTestGitHub(settings),
+                "moltbook" => await RunMoltbook(settings, commandArgs.Length > 1 ? commandArgs[1] : null),
                 "dashboard" => RunDashboard(settings),
                 "watch" => await RunWatch(settings),
                 "logs" => RunLogs(),
@@ -357,6 +358,127 @@ class Program
         return 0;
     }
 
+    static async Task<int> RunMoltbook(AqevrynSettings settings, string? subcommand)
+    {
+        var client = new Common.MoltbookClient();
+
+        if (subcommand == "register" || subcommand == null)
+        {
+            Console.WriteLine("Registering Aqevryn on Moltbook...");
+            var result = await client.RegisterAsync("Aqevryn");
+            if (result.Success)
+            {
+                Console.WriteLine("  ✅ Registered successfully!");
+                Console.WriteLine($"  Agent: {result.AgentName}");
+                Console.WriteLine($"  API Key: {result.ApiKey}");
+                Console.WriteLine($"  Claim URL: {result.ClaimUrl}");
+                Console.WriteLine($"  Verification Code: {result.VerificationCode}");
+                Console.WriteLine();
+                Console.WriteLine("  ⚠️  SAVE YOUR API KEY! It is shown only once.");
+                Console.WriteLine("  📧 Send the claim URL to your human to verify ownership.");
+                Console.WriteLine();
+                Console.WriteLine("  Your human needs to:");
+                Console.WriteLine("    1. Visit the claim URL");
+                Console.WriteLine("    2. Verify their email");
+                Console.WriteLine("    3. Post a verification tweet");
+                Console.WriteLine();
+                Console.WriteLine("  After that, you'll be active on Moltbook!");
+                Console.WriteLine("  Your profile: https://www.moltbook.com/u/Aqevryn");
+            }
+            else
+            {
+                Console.WriteLine($"  ❌ Registration failed: {result.Error}");
+            }
+            return result.Success ? 0 : 1;
+        }
+
+        if (!client.IsRegistered)
+        {
+            Console.WriteLine("  ❌ Not registered on Moltbook. Run 'aqevryn moltbook register' first.");
+            return 1;
+        }
+
+        return subcommand switch
+        {
+            "status" => await RunMoltbookStatus(client),
+            "post" => await RunMoltbookPost(client),
+            "feed" => await RunMoltbookFeed(client),
+            "home" => await RunMoltbookHome(client),
+            "profile" => await RunMoltbookProfile(client),
+            _ => ShowMoltbookHelp(),
+        };
+    }
+
+    static async Task<int> RunMoltbookStatus(Common.MoltbookClient client)
+    {
+        var status = await client.CheckStatusAsync();
+        Console.WriteLine($"Moltbook Status: {status}");
+        return 0;
+    }
+
+    static async Task<int> RunMoltbookPost(Common.MoltbookClient client)
+    {
+        Console.WriteLine("Posting to Moltbook...");
+        var result = await client.PostResearchAsync(
+            "Research Update",
+            "Latest research from Aqevryn",
+            "https://github.com/aqevryn-cloud/aqevryn",
+            "Aqevryn has completed new technology research."
+        );
+        if (result.Success)
+        {
+            Console.WriteLine($"  ✅ Posted! Post ID: {result.PostId}");
+            if (result.VerificationRequired)
+            {
+                Console.WriteLine("  ⚠️  Verification required. Solve the challenge to publish.");
+                Console.WriteLine($"  Challenge: {result.ChallengeText}");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"  ❌ Failed: {result.Error}");
+        }
+        return result.Success ? 0 : 1;
+    }
+
+    static async Task<int> RunMoltbookFeed(Common.MoltbookClient client)
+    {
+        var feed = await client.GetFeedAsync("hot", 10);
+        Console.WriteLine("Moltbook Feed:");
+        Console.WriteLine(feed);
+        return 0;
+    }
+
+    static async Task<int> RunMoltbookHome(Common.MoltbookClient client)
+    {
+        var home = await client.GetHomeAsync();
+        Console.WriteLine("Moltbook Home:");
+        Console.WriteLine(home);
+        return 0;
+    }
+
+    static async Task<int> RunMoltbookProfile(Common.MoltbookClient client)
+    {
+        var profile = await client.GetProfileAsync();
+        Console.WriteLine("Moltbook Profile:");
+        Console.WriteLine(profile);
+        return 0;
+    }
+
+    static int ShowMoltbookHelp()
+    {
+        Console.WriteLine("Moltbook — Social Network for AI Agents");
+        Console.WriteLine();
+        Console.WriteLine("Subcommands:");
+        Console.WriteLine("  register     Register Aqevryn on Moltbook");
+        Console.WriteLine("  status       Check claim status");
+        Console.WriteLine("  post         Post research to Moltbook");
+        Console.WriteLine("  feed         View the Moltbook feed");
+        Console.WriteLine("  home         View your home dashboard");
+        Console.WriteLine("  profile      View your profile");
+        return 0;
+    }
+
     static int RunDashboard(AqevrynSettings settings)
     {
         var summary = ActivityRegistry.GetSummary();
@@ -478,6 +600,8 @@ class Program
         Console.WriteLine("  health       Check application health");
         Console.WriteLine("  build-site   Build the static research website");
         Console.WriteLine("  test-github  Test GitHub connection and create repository if needed");
+        Console.WriteLine("  moltbook     Interact with Moltbook (social network for AI agents)");
+        Console.WriteLine("               Subcommands: register, status, post, feed, home, profile");
         Console.WriteLine("  dashboard    Show pipeline activity dashboard");
         Console.WriteLine("  watch        Live-update dashboard (auto-refresh)");
         Console.WriteLine("  logs         Show recent agent activity log");
