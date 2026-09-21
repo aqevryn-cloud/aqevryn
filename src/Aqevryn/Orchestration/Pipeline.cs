@@ -230,11 +230,12 @@ public class Pipeline
             return !alreadyDone;
         }).ToList();
 
-        // If all topics have been researched, still allow the best one
+        // If all topics have been researched, don't repeat without permission
         if (availableTopics.Count == 0)
         {
-            _logger.LogInformation("All topics have been researched. Selecting the best one anyway.");
-            availableTopics = rankerTopics;
+            _logger.LogInformation("All topics have been researched. No new topics available. Pipeline will wait for fresh sources.");
+            _ctx.SelectedTopic = null;
+            return;
         }
 
         _ctx.RankedTopics = ranker.Rank(availableTopics, _ctx.TrendScores, _ctx.ResearchabilityScores, _ctx.MarketScores, _ctx.ArticleCounts);
@@ -385,7 +386,7 @@ public class Pipeline
                 var notifier = new EmailNotifier();
                 if (notifier.IsConfigured)
                 {
-                    await notifier.SendPrNotificationAsync(topicName, result.PrUrl, _ctx.EditorialReview.OverallScore, _ctx.GeneratedArticle?.Title ?? "");
+                    await notifier.SendPrNotificationAsync(topicName, _ctx.PublishPrUrl ?? result?.PrUrl ?? "", _ctx.EditorialReview.OverallScore, _ctx.GeneratedArticle?.Title ?? "");
                 }
 
                 // Post to Moltbook if registered
@@ -404,7 +405,7 @@ public class Pipeline
                         var mr = await moltbook.PostResearchAsync(
                             topicName,
                             _ctx.GeneratedArticle?.Title ?? "",
-                            result.PrUrl,
+                            _ctx.PublishPrUrl ?? result?.PrUrl ?? "",
                             summary,
                             findings: findingsText,
                             conclusion: conclusionText,

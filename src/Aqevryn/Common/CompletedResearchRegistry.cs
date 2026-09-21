@@ -43,10 +43,15 @@ public class CompletedResearchRegistry
         catch { }
     }
 
-    /// <summary>Record a completed research project.</summary>
+    /// <summary>Record a completed research project (minimum editorial score of 60 required).</summary>
     public static void Record(string topic, string researchQuestion, double finalScore,
         double editorialScore, string? prUrl, string? articleTitle, int articleCount, int findingCount)
     {
+        // Don't record low-quality research as completed
+        if (editorialScore < 60)
+        {
+            return;
+        }
         EnsureLoaded();
         lock (_lock)
         {

@@ -77,6 +77,7 @@ public class SourceCollector
                 "github" => new GitHubSourceAdapter(config, _settings),
                 "hackernews" => new HackerNewsSourceAdapter(config, _settings),
                 "reddit" => new RedditSourceAdapter(config, _settings),
+                "moltbook" => new MoltbookSourceAdapter(config, _settings),
                 _ => throw new ArgumentException($"Unknown source type: {type}")
             };
 
