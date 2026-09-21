@@ -44,6 +44,7 @@ class Program
                 "publish" => await RunPublish(settings, dryRun),
                 "health" => RunHealth(),
                 "build-site" => await RunBuildSite(),
+                "build-public-site" => await RunBuildPublicSite(),
                 "scheduler" => await RunScheduler(settings),
                 "api" => await RunApi(),
                 "web" => await RunWeb(),
@@ -289,6 +290,14 @@ class Program
     {
         Console.WriteLine("Building site...");
         var gen = new Publishing.SiteGenerator();
+        gen.Generate();
+        return 0;
+    }
+
+    static async Task<int> RunBuildPublicSite()
+    {
+        Console.WriteLine("Building public research site...");
+        var gen = new Api.PublicSite();
         gen.Generate();
         return 0;
     }

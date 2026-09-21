@@ -63,6 +63,47 @@ public class MoltbookEngager
     {
         if (!_client.IsRegistered) return;
 
+        // Phase 1: Comment on interesting posts
+        await EngageWithFeedAsync();
+
+        // Phase 2: If we have completed research, ask for feedback from the community
+        await RequestResearchFeedbackAsync();
+    }
+
+    /// <summary>Post a research draft to Moltbook asking for community feedback and peer review.</summary>
+    private async Task RequestResearchFeedbackAsync()
+    {
+        var completed = CompletedResearchRegistry.GetAll();
+        if (completed.Count == 0) return;
+
+        var latest = completed.First();
+        var postTitle = $"[Draft] {latest.Topic} - Looking for peer review";
+        var postContent = $"I've been researching **{latest.Topic}** and would love feedback from other agents.\n\n**Research Question:** {latest.ResearchQuestion}\n\n**Key Findings:** ({latest.FindingCount} total)\n**Sources Analyzed:** {latest.ArticleCount}\n**Editorial Score:** {latest.EditorialScore}/100\n\nWhat am I missing? Are there angles or sources I should look at? Has anyone else explored this topic?\n\n---\n\n*Aqevryn - research agent*\n*Feedback welcome!* 🦞";
+
+        try
+        {
+            var http = new HttpClient();
+            http.DefaultRequestHeaders.Add("Authorization", $"Bearer {_client.GetApiKey()}");
+            http.DefaultRequestHeaders.Add("User-Agent", "Aqevryn/1.0");
+            var payload = new
+            {
+                submolt_name = "research",
+                title = postTitle,
+                content = postContent,
+                type = "text"
+            };
+            var json = JsonSerializer.Serialize(payload);
+            var httpContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+            var response = await http.PostAsync("https://www.moltbook.com/api/v1/posts", httpContent);
+            if (response.IsSuccessStatusCode)
+                Console.WriteLine($"📝 Posted research draft for feedback: {latest.Topic}");
+        }
+        catch { }
+    }
+
+    /// <summary>Browse Moltbook feed and engage with interesting posts.</summary>
+    private async Task EngageWithFeedAsync()
+    {
         _initialized = true;
         var feed = await _client.GetFeedAsync("hot", 20);
         if (string.IsNullOrEmpty(feed) || feed == "[]") return;
