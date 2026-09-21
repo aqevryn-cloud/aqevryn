@@ -36,4 +36,4 @@ logs/
 # Secrets
 *.pem
 *.key
-credentials.json
+credentials.jsonsources.yaml
