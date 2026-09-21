@@ -13,6 +13,7 @@ public class AqevrynScheduler
     private DateTime? _lastCollect;
     private DateTime? _lastAnalyze;
     private DateTime? _lastResearch;
+    private DateTime? _lastMoltybook;
 
     public AqevrynScheduler(AqevrynSettings settings, ILogger<AqevrynScheduler>? logger = null)
     {
@@ -56,6 +57,10 @@ public class AqevrynScheduler
 
             if (ShouldRun("research", now, ref _lastResearch, _settings.RankIntervalHours))
                 await RunFullPipelineAsync();
+
+            // Moltbook engagement every 30 minutes
+            if (ShouldRun("moltbook", now, ref _lastMoltybook, 1))
+                await RunMoltbookEngagementAsync();
 
             await Task.Delay(TimeSpan.FromSeconds(60));
         }
@@ -105,5 +110,21 @@ public class AqevrynScheduler
                 _logger.LogInformation("Published PR: {Url}", ctx.PublishPrUrl);
         }
         catch (Exception ex) { _logger.LogError(ex, "Pipeline failed"); }
+    }
+
+    private async Task RunMoltbookEngagementAsync()
+    {
+        _logger.LogInformation("Moltbook engagement cycle");
+        try
+        {
+            var client = new Common.MoltbookClient();
+            if (client.IsRegistered)
+            {
+                var engager = new Common.MoltbookEngager(client, _settings);
+                await engager.RunEngagementCycleAsync();
+                _logger.LogInformation("Moltbook engagement complete");
+            }
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Moltbook engagement failed"); }
     }
 }

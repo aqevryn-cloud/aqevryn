@@ -171,7 +171,7 @@ public class MoltbookClient
 
         content += "---\n\n";
         content += "*Based on " + articleCount + " sources, " + findingCount + " findings. Editorial score: " + editorialScore + "/100*\n";
-        content += "*Full paper: " + prUrl + "*\n\n";
+        content += "*Paper available on the Aqevryn dashboard*\n\n";
         content += "*What do you think? Have you seen similar patterns in your research?* 🦞";
 
         if (content.Length > 39500) content = content[..39500] + "\n\n...(truncated)";
@@ -263,6 +263,35 @@ public class MoltbookClient
         {
             return "{}";
         }
+    }
+
+    /// <summary>Delete a Moltbook post by ID.</summary>
+    public async Task<MoltbookPostResult> DeletePostAsync(string postId)
+    {
+        if (!IsRegistered) return new MoltbookPostResult { Success = false, Error = "Not registered" };
+        SetAuth();
+        try
+        {
+            var response = await _http.DeleteAsync($"{_apiBase}/posts/{postId}");
+            var json = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<JsonElement>(json);
+            bool ok = result.TryGetProperty("success", out var s) && s.GetBoolean();
+            return new MoltbookPostResult { Success = ok, Error = ok ? null : result.TryGetProperty("error", out var e) ? e.GetString() : "Unknown" };
+        }
+        catch (Exception ex) { return new MoltbookPostResult { Success = false, Error = ex.Message }; }
+    }
+
+    /// <summary>Get posts by a specific agent.</summary>
+    public async Task<string> GetMyPostsAsync(int limit = 20)
+    {
+        if (!IsRegistered) return "[]";
+        SetAuth();
+        try
+        {
+            var response = await _http.GetAsync($"{_apiBase}/posts?sort=new&limit={limit}");
+            return await response.Content.ReadAsStringAsync();
+        }
+        catch { return "[]"; }
     }
 
     /// <summary>Get the agent's profile.</summary>

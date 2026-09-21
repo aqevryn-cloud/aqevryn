@@ -48,7 +48,7 @@ class Program
                 "api" => await RunApi(),
                 "web" => await RunWeb(),
                 "test-github" => await RunTestGitHub(settings),
-                "moltbook" => await RunMoltbook(settings, commandArgs.Length > 1 ? commandArgs[1] : null),
+                "moltbook" => await RunMoltbook(settings, commandArgs),
                 "dashboard" => RunDashboard(settings),
                 "watch" => await RunWatch(settings),
                 "logs" => RunLogs(),
@@ -358,32 +358,25 @@ class Program
         return 0;
     }
 
-    static async Task<int> RunMoltbook(AqevrynSettings settings, string? subcommand)
+    static async Task<int> RunMoltbook(AqevrynSettings settings, string[] commandArgs)
     {
         var client = new Common.MoltbookClient();
 
-        if (subcommand == "register" || subcommand == null)
+        var sub = commandArgs.Length > 1 ? commandArgs[1].ToLower() : null;
+        if (sub == null || sub == "register")
         {
             Console.WriteLine("Registering Aqevryn on Moltbook...");
             var result = await client.RegisterAsync("Aqevryn");
             if (result.Success)
             {
-                Console.WriteLine("  ✅ Registered successfully!");
+                Console.WriteLine($"  ✅ Registered successfully!");
                 Console.WriteLine($"  Agent: {result.AgentName}");
                 Console.WriteLine($"  API Key: {result.ApiKey}");
                 Console.WriteLine($"  Claim URL: {result.ClaimUrl}");
                 Console.WriteLine($"  Verification Code: {result.VerificationCode}");
                 Console.WriteLine();
-                Console.WriteLine("  ⚠️  SAVE YOUR API KEY! It is shown only once.");
-                Console.WriteLine("  📧 Send the claim URL to your human to verify ownership.");
-                Console.WriteLine();
-                Console.WriteLine("  Your human needs to:");
-                Console.WriteLine("    1. Visit the claim URL");
-                Console.WriteLine("    2. Verify their email");
-                Console.WriteLine("    3. Post a verification tweet");
-                Console.WriteLine();
-                Console.WriteLine("  After that, you'll be active on Moltbook!");
-                Console.WriteLine("  Your profile: https://www.moltbook.com/u/Aqevryn");
+                Console.WriteLine($"  ⚠️  SAVE YOUR API KEY! It is shown only once.");
+                Console.WriteLine($"  📧 Send the claim URL to your human to verify ownership.");
             }
             else
             {
@@ -394,17 +387,20 @@ class Program
 
         if (!client.IsRegistered)
         {
-            Console.WriteLine("  ❌ Not registered on Moltbook. Run 'aqevryn moltbook register' first.");
+            Console.WriteLine("  ❌ Not registered on Moltbook.");
             return 1;
         }
 
-        return subcommand switch
+        return sub switch
         {
             "status" => await RunMoltbookStatus(client),
             "post" => await RunMoltbookPost(client),
             "feed" => await RunMoltbookFeed(client),
             "home" => await RunMoltbookHome(client),
             "profile" => await RunMoltbookProfile(client),
+            "list" => await RunMoltbookList(client),
+            "delete" => await RunMoltbookDelete(client, commandArgs),
+            "engage" => await RunMoltbookEngage(settings, client),
             _ => ShowMoltbookHelp(),
         };
     }
@@ -465,6 +461,60 @@ class Program
         return 0;
     }
 
+    static async Task<int> RunMoltbookList(Common.MoltbookClient client)
+    {
+        var posts = await client.GetMyPostsAsync(30);
+        Console.WriteLine("My Posts:");
+        // Parse and show only Aqevryn's posts
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(posts);
+            if (doc.RootElement.TryGetProperty("posts", out var p) && p.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var post in p.EnumerateArray())
+                {
+                    var aid = post.TryGetProperty("author", out var a)
+                        ? (a.TryGetProperty("name", out var n) ? n.GetString() : "") : "";
+                    if (aid?.ToLower() == "aqevryn")
+                    {
+                        var id = post.TryGetProperty("id", out var i) ? i.GetString() : "";
+                        var title = post.TryGetProperty("title", out var t) ? t.GetString() : "";
+                        Console.WriteLine($"  ID: {id}  Title: {title}");
+                    }
+                }
+            }
+        }
+        catch { Console.WriteLine("  (error parsing posts)"); }
+        return 0;
+    }
+
+    static async Task<int> RunMoltbookDelete(Common.MoltbookClient client, string[] args)
+    {
+        var postId = args.Length > 2 ? args[2] : null;
+        if (string.IsNullOrEmpty(postId))
+        {
+            Console.WriteLine("Usage: aqevryn moltbook delete <post-id>");
+            Console.WriteLine("Run 'aqevryn moltbook list' to find your post IDs.");
+            return 1;
+        }
+        Console.WriteLine($"Deleting post {postId}...");
+        var result = await client.DeletePostAsync(postId);
+        if (result.Success)
+            Console.WriteLine($"  ✅ Deleted");
+        else
+            Console.WriteLine($"  ❌ Failed: {result.Error}");
+        return result.Success ? 0 : 1;
+    }
+
+    static async Task<int> RunMoltbookEngage(AqevrynSettings settings, Common.MoltbookClient client)
+    {
+        var engager = new Common.MoltbookEngager(client, settings);
+        Console.WriteLine("🤖 Aqevryn browsing Moltbook for interesting discussions...");
+        await engager.RunEngagementCycleAsync();
+        Console.WriteLine("✅ Engagement cycle complete.");
+        return 0;
+    }
+
     static int ShowMoltbookHelp()
     {
         Console.WriteLine("Moltbook — Social Network for AI Agents");
@@ -476,6 +526,9 @@ class Program
         Console.WriteLine("  feed         View the Moltbook feed");
         Console.WriteLine("  home         View your home dashboard");
         Console.WriteLine("  profile      View your profile");
+        Console.WriteLine("  list         List your posts");
+        Console.WriteLine("  delete       Delete a post");
+        Console.WriteLine("  engage       Browse and comment on trending discussions");
         return 0;
     }
 
