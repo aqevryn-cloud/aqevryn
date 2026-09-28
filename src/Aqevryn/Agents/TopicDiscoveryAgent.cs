@@ -10,22 +10,64 @@ public class TopicDiscoveryAgent
 
     private static readonly Dictionary<string, string[]> KeywordTopics = new()
     {
+        // === TECHNOLOGY ===
         ["artificial_intelligence"] = new[] { "ai", "artificial intelligence", "machine learning", "ml", "deep learning", "neural network", "transformer", "gpt", "llm", "large language model", "foundation model", "diffusion" },
         ["ai_agents"] = new[] { "ai agent", "agentic", "autonomous agent", "multi-agent", "agent framework", "tool use", "coding agent" },
         ["robotics"] = new[] { "robot", "robotics", "autonomous vehicle", "drone", "humanoid", "manipulation", "slam", "ros" },
         ["cybersecurity"] = new[] { "security", "cybersecurity", "vulnerability", "exploit", "malware", "ransomware", "zero-day", "threat", "encryption" },
-        ["cloud_computing"] = new[] { "cloud", "aws", "azure", "gcp", "serverless", "kubernetes", "k8s", "container", "docker", "microservice", "edge computing" },
-        ["distributed_systems"] = new[] { "distributed system", "consensus", "raft", "paxos", "database sharding", "distributed database", "crdt" },
-        ["databases"] = new[] { "database", "sql", "nosql", "postgresql", "vector database", "pgvector", "data lake", "data warehouse" },
-        ["developer_tools"] = new[] { "developer tool", "ide", "debugger", "profiler", "package manager", "build system", "ci/cd", "devops" },
-        ["semiconductors"] = new[] { "semiconductor", "chip", "processor", "gpu", "tpu", "npu", "asic", "fpga", "transistor", "nanometer" },
+        ["cloud_computing"] = new[] { "cloud", "aws", "azure", "gcp", "serverless", "kubernetes", "container", "docker", "microservice", "edge computing" },
+        ["semiconductors"] = new[] { "semiconductor", "chip", "processor", "gpu", "tpu", "npu", "asic", "fpga", "nanometer" },
         ["quantum_computing"] = new[] { "quantum", "qubit", "quantum computing", "quantum error correction" },
-        ["networking"] = new[] { "network", "networking", "5g", "6g", "wifi", "mesh network", "software-defined networking" },
-        ["ar_vr"] = new[] { "augmented reality", "virtual reality", "mixed reality", "ar", "vr", "spatial computing", "metaverse" },
-        ["energy_technology"] = new[] { "energy", "battery", "solar", "renewable", "nuclear", "fusion", "power grid" },
-        ["web_technologies"] = new[] { "web", "javascript", "typescript", "wasm", "webassembly", "react", "nextjs", "browser", "webgpu" },
-        ["operating_systems"] = new[] { "operating system", "linux", "kernel", "rtos", "unix", "filesystem", "scheduler" },
-        ["emerging_technologies"] = new[] { "emerging tech", "breakthrough", "innovation", "discovery", "lab", "prototype", "moonshot" },
+
+        // === SCIENCE ===
+        ["physics"] = new[] { "physics", "particle", "quantum mechanics", "relativity", "nuclear physics", "astrophysics", "cosmology", "string theory" },
+        ["biology"] = new[] { "biology", "genetics", "dna", "rna", "evolution", "cell biology", "molecular biology", "genome", "crispr" },
+        ["medicine"] = new[] { "medicine", "clinical trial", "drug", "vaccine", "cancer", "disease", "therapy", "diagnosis", "treatment", "patient" },
+        ["chemistry"] = new[] { "chemistry", "chemical", "compound", "molecule", "catalyst", "reaction", "material science", "polymer" },
+        ["neuroscience"] = new[] { "neuroscience", "brain", "neuron", "cognitive science", "consciousness", "neuroplasticity", "neurodegenerative" },
+        ["space"] = new[] { "space", "nasa", "esa", "spacex", "astronomy", "telescope", "planet", "star", "galaxy", "exoplanet", "mars", "lunar", "satellite" },
+
+        // === ECONOMICS & FINANCE ===
+        ["economics"] = new[] { "economics", "economy", "inflation", "gdp", "monetary policy", "fiscal policy", "interest rate", "central bank", "recession", "unemployment" },
+        ["finance"] = new[] { "finance", "market", "stock", "bond", "investment", "trading", "banking", "asset", "portfolio", "derivative", "crypto" },
+        ["trade"] = new[] { "trade", "tariff", "export", "import", "supply chain", "global trade", "sanction" },
+
+        // === BUSINESS ===
+        ["business"] = new[] { "business", "startup", "entrepreneurship", "strategy", "management", "leadership", "innovation", "corporate", "industry" },
+        ["markets"] = new[] { "market", "competition", "monopoly", "antitrust", "regulation", "merger", "acquisition", "ipo" },
+
+        // === HISTORY ===
+        ["history"] = new[] { "history", "historical", "ancient", "medieval", "war", "revolution", "empire", "civilization", "archaeology", "historian" },
+
+        // === GEOPOLITICS ===
+        ["geopolitics"] = new[] { "geopolitics", "foreign policy", "diplomacy", "alliance", "conflict", "military", "intelligence", "strategy", "nato", "united nations" },
+        ["international_relations"] = new[] { "international relations", "global affairs", "soft power", "geostrategic", "world order", "bilateral" },
+
+        // === CLIMATE & ENVIRONMENT ===
+        ["climate_change"] = new[] { "climate change", "global warming", "carbon", "emission", "greenhouse", "paris agreement", "net zero", "climate crisis" },
+        ["environment"] = new[] { "environment", "pollution", "biodiversity", "conservation", "ecosystem", "sustainability", "renewable", "deforestation" },
+
+        // === ENERGY ===
+        ["energy"] = new[] { "energy", "fossil fuel", "renewable energy", "solar", "wind", "nuclear", "fusion", "grid", "battery", "hydrogen", "oil", "gas" },
+
+        // === EDUCATION ===
+        ["education"] = new[] { "education", "learning", "teaching", "school", "university", "curriculum", "student", "pedagogy", "online learning" },
+
+        // === LAW ===
+        ["law"] = new[] { "law", "legal", "supreme court", "constitution", "legislation", "regulation", "compliance", "privacy", "intellectual property", "copyright" },
+
+        // === CULTURE & SOCIETY ===
+        ["culture"] = new[] { "culture", "art", "music", "literature", "film", "media", "philosophy", "religion", "language" },
+        ["society"] = new[] { "society", "demographics", "inequality", "poverty", "urbanization", "immigration", "social media", "public health", "welfare" },
+
+        // === POLITICS ===
+        ["politics"] = new[] { "politics", "election", "democracy", "government", "policy", "reform", "campaign", "voting", "congress", "parliament" },
+
+        // === PSYCHOLOGY ===
+        ["psychology"] = new[] { "psychology", "mental health", "behavior", "cognition", "personality", "therapy", "trauma", "depression", "anxiety" },
+
+        // === REMAINING TECHNOLOGY (for balance) ===
+        ["software_engineering"] = new[] { "software engineering", "programming", "coding", "developer", "open source", "github", "api", "framework" },
     };
 
     public TopicDiscoveryAgent(LLMClient? llm = null, ILogger<TopicDiscoveryAgent>? logger = null)

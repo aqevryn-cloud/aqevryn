@@ -1,9 +1,12 @@
-# Aqevryn C# — Source Configuration
+# Aqevryn — Multi-Domain Source Configuration
+# Sources spanning all disciplines defined in soul.md
+
 sources:
+  # === TECHNOLOGY ===
   - name: Hacker News
     type: hackernews
     feed_type: topstories
-    max_items: 30
+    max_items: 15
     enabled: true
     category: technology
 
@@ -13,33 +16,167 @@ sources:
       - cs.AI
       - cs.LG
       - cs.CL
-    max_results: 30
+    max_results: 15
     enabled: true
-    category: artificial_intelligence
-
-  - name: GitHub Trending AI
-    type: github
-    topics:
-      - ai
-      - machine-learning
-      - llm
-      - agents
-    min_stars: 100
-    enabled: true
-    category: developer_tools
-
-  - name: Reddit r/MachineLearning
-    type: reddit
-    subreddits:
-      - MachineLearning
-      - artificial
-    feed_type: hot
-    limit: 25
-    enabled: true
-    category: artificial_intelligence
+    category: technology
 
   - name: MIT Technology Review
     type: rss
     url: https://www.technologyreview.com/feed/
+    enabled: true
+    category: technology
+
+  - name: IEEE Spectrum
+    type: rss
+    url: https://spectrum.ieee.org/feed.rss
+    enabled: true
+    category: technology
+
+  # === SCIENCE ===
+  - name: Nature
+    type: rss
+    url: https://www.nature.com/nature.rss
+    enabled: true
+    category: science
+
+  - name: Science Daily
+    type: rss
+    url: https://www.sciencedaily.com/rss/all.xml
+    enabled: true
+    category: science
+
+  - name: New Scientist
+    type: rss
+    url: https://www.newscientist.com/feed/home
+    enabled: true
+    category: science
+
+  - name: PubMed
+    type: rss
+    url: https://pubmed.ncbi.nlm.nih.gov/rss/search/1dPS3k8L-mvFvi0k3YLygYhVuYIsvWWgKYjDC_j9IxWHj1fFZNqk0H0ZUb8Rr8QFjDVPK4iakBq1xT-PN3-YWg%3D%3D/?limit=15&utm_campaign=pubmed-2&fc=20250301
+    enabled: true
+    category: medicine
+
+  # === ECONOMICS & FINANCE ===
+  - name: Bloomberg
+    type: rss
+    url: https://www.bloomberg.com/feed/podcast/etf-report.xml
+    enabled: true
+    category: economics
+
+  - name: Economist
+    type: rss
+    url: https://www.economist.com/feeds/print-sections/77/business.xml
+    enabled: true
+    category: economics
+
+  - name: IMF Blog
+    type: rss
+    url: https://www.imf.org/en/News/RSS
+    enabled: true
+    category: economics
+
+  - name: World Bank
+    type: rss
+    url: https://www.worldbank.org/en/news/rss
+    enabled: true
+    category: economics
+
+  # === HISTORY & GEOPOLITICS ===
+  - name: Foreign Affairs
+    type: rss
+    url: https://www.foreignaffairs.com/feed.xml
+    enabled: true
+    category: geopolitics
+
+  - name: History Today
+    type: rss
+    url: https://www.historytoday.com/feed
+    enabled: true
+    category: history
+
+  - name: War on the Rocks
+    type: rss
+    url: https://warontherocks.com/feed/
+    enabled: true
+    category: geopolitics
+
+  # === CLIMATE & ENVIRONMENT ===
+  - name: NASA Climate
+    type: rss
+    url: https://climate.nasa.gov/feed/news/
+    enabled: true
+    category: climate
+
+  - name: Carbon Brief
+    type: rss
+    url: https://www.carbonbrief.org/feed/
+    enabled: true
+    category: climate
+
+  # === ENERGY ===
+  - name: Energy Wire
+    type: rss
+    url: https://www.eenews.net/energywire/feed/
+    enabled: true
+    category: energy
+
+  # === BUSINESS ===
+  - name: Harvard Business Review
+    type: rss
+    url: https://hbr.org/feed/latest
+    enabled: true
+    category: business
+
+  - name: Wall Street Journal
+    type: rss
+    url: https://feeds.a.dj.com/rss/RSSWSJD.xml
+    enabled: true
+    category: business
+
+  # === CULTURE & SOCIETY ===
+  - name: Aeon
+    type: rss
+    url: https://aeon.co/feed.rss
+    enabled: true
+    category: culture
+
+  - name: The Conversation
+    type: rss
+    url: https://theconversation.com/feed
+    enabled: true
+    category: society
+
+  # === LAW & POLICY ===
+  - name: SCOTUSblog
+    type: rss
+    url: https://www.scotusblog.com/feed/
+    enabled: true
+    category: law
+
+  # === Reddit for cross-domain discovery ===
+  - name: Reddit Science
+    type: reddit
+    subreddits:
+      - science
+      - economics
+      - history
+      - geopolitics
+      - climate
+      - philosophy
+    feed_type: hot
+    limit: 10
+    enabled: true
+    category: science
+
+  - name: Reddit General
+    type: reddit
+    subreddits:
+      - Futurology
+      - worldnews
+      - deeplearning
+      - business
+    feed_type: hot
+    limit: 5
     enabled: true
     category: technology

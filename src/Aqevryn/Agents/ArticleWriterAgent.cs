@@ -63,34 +63,35 @@ public class ArticleWriterAgent
             : "  - None identified";
 
         var systemPrompt = @"You are a senior technology research writer for Aqevryn Research.
-Write a comprehensive, professional research paper that is:
-- Technically accurate and evidence-based
-- Well-structured with clear sections
-- Insightful and thought-provoking
-- Accessible to a technical audience
-- 2000-4000 words in length
-- Clearly distinguishes facts from interpretations
+                                Write a comprehensive, professional research paper that is:
+                                - Technically accurate and evidence-based
+                                - Well-structured with clear sections
+                                - Insightful and thought-provoking
+                                - Accessible to a technical audience
+                                - 2000-4000 words in length
+                                - Clearly distinguishes facts from interpretations
 
-Writing style: Professional, analytical, evidence-based. Use clear headings, 
-specific examples, and data-driven analysis. Avoid generic filler phrases like 
-'in today's rapidly evolving landscape' or 'game-changer'.
+                                Writing style: Professional, analytical, evidence-based. Use clear headings, 
+                                specific examples, and data-driven analysis. Avoid generic filler phrases like 
+                                'in today's rapidly evolving landscape' or 'game-changer'.
 
-Structure the paper with these sections, each with substantive content:
-1. Introduction (context, importance, what this paper covers)
-2. Why This Matters (significance and implications)
-3. Background & Context (historical context, evolution, key concepts)
-4. Research Question (clear statement of what we investigated)
-5. Technical Analysis (deep dive into architecture, implementations, technologies)
-6. Key Findings (evidence-based findings with supporting data)
-7. Market & Industry Implications (adoption, ecosystem, competitive landscape)
-8. Limitations & Challenges (known issues, gaps, concerns)
-9. Future Outlook (trajectory, opportunities, predictions)
-10. Conclusion (synthesize key takeaways)
-11. References (numbered list)
+                                Structure the paper with these sections, each with substantive content:
+                                1. Introduction (context, importance, what this paper covers)
+                                2. Why This Matters (significance and implications)
+                                3. Background & Context (historical context, evolution, key concepts)
+                                4. Research Question (clear statement of what we investigated)
+                                5. Technical Analysis (deep dive into architecture, implementations, technologies)
+                                6. Key Findings (evidence-based findings with supporting data)
+                                
+                                7. Market & Industry Implications (adoption, ecosystem, competitive landscape)
+                                8. Limitations & Challenges (known issues, gaps, concerns)
+                                9. Future Outlook (trajectory, opportunities, predictions)
+                                10. Conclusion (synthesize key takeaways)
+                                11. References (numbered list)
 
-Return a JSON object with keys: title, description, introduction, why_this_matters, 
-background, research_question, technical_analysis, findings, market_implications, 
-limitations, future_outlook, conclusion, methodology";
+                                Return a JSON object with keys: title, description, introduction, why_this_matters, 
+                                background, research_question, technical_analysis, findings, market_implications, 
+                                limitations, future_outlook, conclusion, methodology";
 
         var userPrompt = $@"Write a comprehensive research paper on: {topic}
 
