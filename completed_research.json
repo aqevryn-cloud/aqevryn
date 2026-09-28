@@ -1,0 +1,35 @@
+[
+  {
+    "Topic": "Cybersecurity",
+    "ResearchQuestion": "What are the most effective approaches for mitigating Cybersecurity risks in modern infrastructure?",
+    "FinalScore": 50.8,
+    "EditorialScore": 78.5,
+    "PrUrl": null,
+    "ArticleTitle": "Mitigating Cybersecurity Risks in Modern Infrastructure: Effective Approaches and Future Directions",
+    "ArticleCount": 272,
+    "FindingCount": 10,
+    "CompletedAt": "2026-09-28T12:32:23.5586278Z"
+  },
+  {
+    "Topic": "culture",
+    "ResearchQuestion": "What are the key factors driving culture adoption and what limitations remain?",
+    "FinalScore": 48.7,
+    "EditorialScore": 83.5,
+    "PrUrl": null,
+    "ArticleTitle": "Cultural Adoption: Key Drivers and Limitations",
+    "ArticleCount": 272,
+    "FindingCount": 4,
+    "CompletedAt": "2026-09-28T12:34:35.643859Z"
+  },
+  {
+    "Topic": "finance",
+    "ResearchQuestion": "What are the key factors driving finance adoption and what limitations remain?",
+    "FinalScore": 48.7,
+    "EditorialScore": 79.5,
+    "PrUrl": null,
+    "ArticleTitle": "Key Factors Driving Finance Adoption and Remaining Limitations",
+    "ArticleCount": 272,
+    "FindingCount": 14,
+    "CompletedAt": "2026-09-28T12:36:40.7886461Z"
+  }
+]
