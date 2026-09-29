@@ -410,6 +410,7 @@ class Program
             "list" => await RunMoltbookList(client),
             "delete" => await RunMoltbookDelete(client, commandArgs),
             "engage" => await RunMoltbookEngage(settings, client),
+            "lineage" => await RunMoltbookLineage(settings),
             _ => ShowMoltbookHelp(),
         };
     }
@@ -521,6 +522,31 @@ class Program
         Console.WriteLine("🤖 Aqevryn browsing Moltbook for interesting discussions...");
         await engager.RunEngagementCycleAsync();
         Console.WriteLine("✅ Engagement cycle complete.");
+        return 0;
+    }
+
+    static async Task<int> RunMoltbookLineage(AqevrynSettings settings)
+    {
+        Console.WriteLine("📊 Research Knowledge Graph");
+        Console.WriteLine();
+        var completed = Common.CompletedResearchRegistry.GetAll();
+        foreach (var r in completed.Take(5))
+        {
+            Console.WriteLine($"  📄 {r.Topic}");
+            var lineage = Common.KnowledgeGraph.GetLineage(r.Topic);
+            if (lineage != null)
+            {
+                Console.WriteLine($"     Findings: {lineage.Findings.Count}");
+                Console.WriteLine($"     Questions: {lineage.Questions.Count}");
+                Console.WriteLine($"     Gaps: {lineage.Gaps.Count}");
+                Console.WriteLine($"     Contradictions: {lineage.Contradictions.Count}");
+            }
+            else
+            {
+                Console.WriteLine($"     (Knowledge Graph not yet populated)");
+            }
+            Console.WriteLine();
+        }
         return 0;
     }
 

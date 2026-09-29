@@ -304,11 +304,17 @@ public class Pipeline
 
         _logger.LogInformation("Researching {Topic} with {Count} matched articles", topicName, topicArticles.Count);
 
+        // Generate a research question using the question discovery engine (soul.md §21, §38)
+        var questionDiscovery = new Agents.ResearchQuestionDiscovery(_settings);
+        var researchQuestion = await questionDiscovery.GenerateQuestionAsync(topicName, topicArticles);
+        _logger.LogInformation("Generated research question: {Q}", researchQuestion);
+
         var planner = new ResearchPlannerAgent(_llm);
         _ctx.ResearchPlan = await planner.CreatePlanAsync(topicName,
             _ctx.ResearchabilityScores.GetValueOrDefault(topicName),
             _ctx.TrendScores.GetValueOrDefault(topicName),
             _ctx.MarketScores.GetValueOrDefault(topicName), topicArticles);
+        _ctx.ResearchPlan.ResearchQuestion = researchQuestion; // Override with the LLM-generated question
         ActivityRegistry.LogComplete("research_planner", "research", $"Question: {_ctx.ResearchPlan.ResearchQuestion}");
 
         ActivityRegistry.LogStart("deep_researcher", "research", $"Researching: {topicName}");

@@ -1,0 +1,52 @@
+# Aqevryn C# — Source Configuration
+sources:
+  - name: Hacker News
+    type: hackernews
+    feed_type: topstories
+    max_items: 30
+    enabled: true
+    category: technology
+
+  - name: arXiv AI
+    type: arxiv
+    categories:
+      - cs.AI
+      - cs.LG
+      - cs.CL
+    max_results: 30
+    enabled: true
+    category: artificial_intelligence
+
+  - name: GitHub Trending AI
+    type: github
+    topics:
+      - ai
+      - machine-learning
+      - llm
+      - agents
+    min_stars: 100
+    enabled: true
+    category: developer_tools
+
+  - name: Reddit r/MachineLearning
+    type: reddit
+    subreddits:
+      - MachineLearning
+      - artificial
+    feed_type: hot
+    limit: 25
+    enabled: true
+    category: artificial_intelligence
+
+  - name: MIT Technology Review
+    type: rss
+    url: https://www.technologyreview.com/feed/
+    enabled: true
+    category: technology
+
+ - name: Moltbook Trending
+   type: moltbook
+   sort: hot
+   limit: 25
+   enabled: true
+   category: technology
