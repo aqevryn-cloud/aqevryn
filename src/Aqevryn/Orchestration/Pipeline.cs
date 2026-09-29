@@ -478,5 +478,52 @@ public class Pipeline
             articleCount: _ctx.Articles.Count,
             findingCount: _ctx.ResearchResult?.Findings.Count ?? 0
         );
+
+        // Save the full article content for the web dashboard and public site
+        SaveArticleContent(topicName);
+    }
+
+    private void SaveArticleContent(string topicName)
+    {
+        try
+        {
+            var dataDir = Path.Combine(AppContext.BaseDirectory, "webdata", "articles");
+            Directory.CreateDirectory(dataDir);
+            var slug = topicName.ToLower().Replace(" ", "-").Replace("/", "-");
+            slug = System.Text.RegularExpressions.Regex.Replace(slug, @"[^a-z0-9-]", "");
+
+            if (_ctx.GeneratedArticle != null)
+            {
+                var articleData = new
+                {
+                    topic = topicName,
+                    title = _ctx.GeneratedArticle.Title,
+                    slug = slug,
+                    description = _ctx.GeneratedArticle.Description,
+                    introduction = _ctx.GeneratedArticle.Introduction,
+                    whyThisMatters = _ctx.GeneratedArticle.WhyThisMatters,
+                    background = _ctx.GeneratedArticle.Background,
+                    researchQuestion = _ctx.GeneratedArticle.ResearchQuestion,
+                    technicalAnalysis = _ctx.GeneratedArticle.TechnicalAnalysis,
+                    findings = _ctx.GeneratedArticle.Findings,
+                    marketImplications = _ctx.GeneratedArticle.MarketImplications,
+                    limitations = _ctx.GeneratedArticle.Limitations,
+                    futureOutlook = _ctx.GeneratedArticle.FutureOutlook,
+                    conclusion = _ctx.GeneratedArticle.Conclusion,
+                    methodology = _ctx.GeneratedArticle.Methodology,
+                    references = _ctx.GeneratedArticle.References,
+                    editorialScore = _ctx.EditorialReview?.OverallScore ?? 0,
+                    articleCount = _ctx.Articles.Count,
+                    findingCount = _ctx.ResearchResult?.Findings.Count ?? 0,
+                    completedAt = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                };
+                var json = System.Text.Json.JsonSerializer.Serialize(articleData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(Path.Combine(dataDir, $"{slug}.json"), json);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to save article content");
+        }
     }
 }
