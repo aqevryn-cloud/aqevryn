@@ -32,13 +32,18 @@ public class ResearchAgent
         _logger.LogInformation("Researching {Topic} with {Count} articles using LLM={LlmAvailable}",
             topic, articles.Count, _llm?.IsAvailable ?? false);
 
-        // Step 1: Classify sources from the provided articles
+        // Determine the research domain for domain-aware evidence weights
+        var domain = DetectDomain(topic);
+        var profile = DomainProfiles.GetProfile(domain);
+        _logger.LogInformation("Detected domain: {Domain} ({Desc})", domain, profile.Description);
+
+        // Step 1: Classify sources with domain-aware reliability
         var sources = articles.Select(a => new ResearchSource
         {
             Url = a.GetValueOrDefault("url")?.ToString() ?? "",
             Title = a.GetValueOrDefault("title")?.ToString() ?? "",
             SourceType = MapSourceType(a.GetValueOrDefault("source_type")?.ToString() ?? ""),
-            Reliability = SourceReliability.GetValueOrDefault(MapSourceType(a.GetValueOrDefault("source_type")?.ToString() ?? ""), 0.5),
+            Reliability = DomainProfiles.GetSourceReliability(domain, MapSourceType(a.GetValueOrDefault("source_type")?.ToString() ?? "")),
         }).OrderByDescending(s => s.Reliability).Take(maxSources).ToList();
 
         // Step 2: Perform deep research
@@ -88,11 +93,35 @@ public class ResearchAgent
             {
                 $"Analyzed {sources.Count} sources from {articles.Count} collected articles",
                 $"Extracted {findings.Count} findings across {findings.Select(f => f.FindingType).Distinct().Count()} finding types",
+                $"Research domain: {domain}",
                 $"Used LLM: {(_llm?.IsAvailable == true ? "Yes" : "No (deterministic mode)")}",
                 "Source priority: primary research > official docs > reputable publications > community",
                 "Multi-pass research: classification → deep analysis → synthesis → conclusion",
             }
         };
+    }
+
+    private static string DetectDomain(string topic)
+    {
+        var lower = topic.ToLowerInvariant();
+        var domainMap = new Dictionary<string, string[]>
+        {
+            ["technology"] = new[] { "ai", "software", "computing", "cybersecurity", "cloud", "database", "semiconductor", "quantum", "network", "web", "robot", "developer", "api", "framework", "coding" },
+            ["science"] = new[] { "physics", "biology", "chemistry", "genetics", "evolution", "neuroscience", "space", "nasa", "astronomy", "particle" },
+            ["medicine"] = new[] { "medicine", "clinical", "drug", "vaccine", "cancer", "disease", "therapy", "patient", "diagnosis", "treatment" },
+            ["economics"] = new[] { "economy", "inflation", "gdp", "monetary", "fiscal", "interest rate", "central bank", "recession", "unemployment", "trade" },
+            ["finance"] = new[] { "market", "stock", "bond", "investment", "trading", "banking", "portfolio", "crypto", "finance" },
+            ["history"] = new[] { "history", "ancient", "medieval", "war", "revolution", "empire", "civilization", "archaeology" },
+            ["geopolitics"] = new[] { "geopolitics", "foreign", "diplomacy", "alliance", "military", "nato", "sanction", "strategy" },
+            ["climate"] = new[] { "climate", "global warming", "carbon", "emission", "greenhouse", "environment", "biodiversity", "pollution" },
+            ["energy"] = new[] { "energy", "fossil", "renewable", "solar", "wind", "nuclear", "grid", "battery", "hydrogen" },
+            ["law"] = new[] { "law", "legal", "supreme court", "constitution", "legislation", "regulation", "compliance", "privacy", "copyright" },
+            ["business"] = new[] { "business", "startup", "entrepreneurship", "strategy", "management", "corporate", "industry", "market" },
+        };
+        foreach (var (domain, keywords) in domainMap)
+            if (keywords.Any(k => lower.Contains(k)))
+                return domain;
+        return "default";
     }
 
     private async Task<(List<ResearchFinding>, List<string>, List<string>, string)> DeepResearchWithLLMAsync(

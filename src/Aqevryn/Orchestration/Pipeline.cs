@@ -319,6 +319,36 @@ public class Pipeline
             _ctx.ResearchResult.SourcesAnalyzed.Count, _ctx.ResearchResult.Findings.Count);
         ActivityRegistry.LogComplete("deep_researcher", "research",
             $"{_ctx.ResearchResult.SourcesAnalyzed.Count} sources, {_ctx.ResearchResult.Findings.Count} findings");
+
+        // Record findings, gaps, and questions to the Knowledge Graph (soul.md §7, §23)
+        foreach (var f in _ctx.ResearchResult.Findings)
+        {
+            KnowledgeGraph.RecordFinding(
+                projectTopic: topicName,
+                claim: f.Claim,
+                findingType: f.FindingType,
+                confidence: f.Confidence,
+                sourceUrl: f.SourceUrl,
+                supportingEvidence: f.SupportingExcerpt
+            );
+        }
+        foreach (var gap in _ctx.ResearchResult.KnowledgeGaps)
+            KnowledgeGraph.RecordGap(topicName, gap);
+
+        // Falsifiability check — actively search for disconfirming evidence (soul.md §14)
+        try
+        {
+            var falsifiability = new FalsifiabilityChecker(_settings);
+            var lastConclusion = _ctx.ResearchResult.Conclusions.LastOrDefault() ?? "";
+            if (!string.IsNullOrEmpty(lastConclusion))
+            {
+                var report = await falsifiability.CheckAsync(topicName, lastConclusion, _ctx.ResearchResult.Findings);
+                foreach (var de in report.DisconfirmingEvidence)
+                    KnowledgeGraph.RecordContradiction(topicName, lastConclusion, de.Claim, "conclusion", de.Source, de.Strength);
+                _logger.LogInformation("Falsifiability check: {Count} potential counterarguments", report.DisconfirmingEvidence.Count);
+            }
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Falsifiability check failed"); }
     }
 
     private async Task StageWriteAsync()
