@@ -45,7 +45,7 @@ public class CompletedResearchRegistry
 
     /// <summary>Record a completed research project (minimum editorial score of 60 required).</summary>
     public static void Record(string topic, string researchQuestion, double finalScore,
-        double editorialScore, string? prUrl, string? articleTitle, int articleCount, int findingCount)
+        double editorialScore, string? prUrl, string? articleTitle, int articleCount, int findingCount, string? slug = null)
     {
         // Don't record low-quality research as completed
         if (editorialScore < 60)
@@ -60,6 +60,7 @@ public class CompletedResearchRegistry
             _completed.Add(new CompletedResearch
             {
                 Topic = topic,
+                Slug = slug ?? topic.ToLower().Replace(" ", "-").Replace("/", "-"),
                 ResearchQuestion = researchQuestion,
                 FinalScore = finalScore,
                 EditorialScore = editorialScore,
@@ -109,6 +110,7 @@ public class CompletedResearch
     public double EditorialScore { get; set; }
     public string? PrUrl { get; set; }
     public string? ArticleTitle { get; set; }
+    public string Slug { get; set; } = "";
     public int ArticleCount { get; set; }
     public int FindingCount { get; set; }
     public DateTime CompletedAt { get; set; }

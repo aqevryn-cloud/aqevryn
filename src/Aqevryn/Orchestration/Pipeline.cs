@@ -476,7 +476,8 @@ public class Pipeline
             prUrl: _ctx.PublishPrUrl,
             articleTitle: _ctx.GeneratedArticle?.Title,
             articleCount: _ctx.Articles.Count,
-            findingCount: _ctx.ResearchResult?.Findings.Count ?? 0
+            findingCount: _ctx.ResearchResult?.Findings.Count ?? 0,
+            slug: _ctx.GeneratedArticle?.Slug
         );
 
         // Save the full article content for the web dashboard and public site
