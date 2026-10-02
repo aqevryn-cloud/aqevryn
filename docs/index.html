@@ -145,7 +145,7 @@
     <script>
         async function loadResearch() {
             try {
-                const resp = await fetch('https://raw.githubusercontent.com/aqevryn-cloud/aqevryn/main/completed_research.json');
+                const resp = await fetch('/completed_research.json');
                 const data = await resp.json();
                 const tbody = document.getElementById('research-rows');
                 if (!data || data.length === 0) {

@@ -1,58 +1,35 @@
 [
   {
-    "Topic": "Robotics",
-    "ResearchQuestion": "How can open-source robotics initiatives, like JBR-001, influence the accessibility and democratization of robotics technology in various sectors?",
-    "FinalScore": 48.6,
-    "EditorialScore": 84.8,
-    "ArticleTitle": "The Impact of Open-Source Robotics Initiatives on the Accessibility and Democratization of Robotics Technology",
-    "ArticleCount": 272,
-    "FindingCount": 5,
+    "Topic": "Cybersecurity",
+    "ResearchQuestion": "What are the most effective approaches for mitigating Cybersecurity risks in modern infrastructure?",
+    "FinalScore": 50.8,
+    "EditorialScore": 78.5,
     "PrUrl": null,
-    "Slug": "robotics",
-    "CompletedAt": "2026-09-30T12:07:39.1082895Z",
-    "HasArticle": true,
-    "ArticleUrl": "/articles/robotics.html"
+    "ArticleTitle": "Mitigating Cybersecurity Risks in Modern Infrastructure: Effective Approaches and Future Directions",
+    "ArticleCount": 272,
+    "FindingCount": 10,
+    "CompletedAt": "2026-09-28T12:32:23.5586278Z"
   },
   {
     "Topic": "culture",
-    "ResearchQuestion": "How do contemporary perceptions of Viking culture influence modern interpretations of heritage and identity in regions affected by climate change?",
-    "FinalScore": 48.6,
+    "ResearchQuestion": "What are the key factors driving culture adoption and what limitations remain?",
+    "FinalScore": 48.7,
+    "EditorialScore": 83.5,
+    "PrUrl": null,
+    "ArticleTitle": "Cultural Adoption: Key Drivers and Limitations",
+    "ArticleCount": 272,
+    "FindingCount": 4,
+    "CompletedAt": "2026-09-28T12:34:35.643859Z"
+  },
+  {
+    "Topic": "finance",
+    "ResearchQuestion": "What are the key factors driving finance adoption and what limitations remain?",
+    "FinalScore": 48.7,
     "EditorialScore": 79.5,
-    "ArticleTitle": "Contemporary Perceptions of Viking Culture: Implications for Heritage and Identity in Climate-Affected Regions",
-    "ArticleCount": 272,
-    "FindingCount": 12,
     "PrUrl": null,
-    "Slug": "culture",
-    "CompletedAt": "2026-09-30T09:54:27.0195589Z",
-    "HasArticle": true,
-    "ArticleUrl": "/articles/culture.html"
-  },
-  {
-    "Topic": "space",
-    "ResearchQuestion": "How do the physiological effects of space travel, such as constipation in astronauts, impact long-term missions and the feasibility of colonizing other planets like Mars?",
-    "FinalScore": 48.6,
-    "EditorialScore": 82.2,
-    "ArticleTitle": "Physiological Effects of Space Travel: Implications for Long-Term Missions and Mars Colonization",
+    "ArticleTitle": "Key Factors Driving Finance Adoption and Remaining Limitations",
     "ArticleCount": 272,
-    "FindingCount": 5,
-    "PrUrl": null,
-    "Slug": "space",
-    "CompletedAt": "2026-09-30T09:52:02.6859469Z",
-    "HasArticle": true,
-    "ArticleUrl": "/articles/space.html"
-  },
-  {
-    "Topic": "Cybersecurity",
-    "ResearchQuestion": "How are emerging technologies, such as AI and home battery systems, reshaping cybersecurity strategies in critical infrastructure sectors?",
-    "FinalScore": 50.7,
-    "EditorialScore": 85.8,
-    "ArticleTitle": "Emerging Technologies Reshaping Cybersecurity Strategies in Critical Infrastructure Sectors",
-    "ArticleCount": 272,
-    "FindingCount": 5,
-    "PrUrl": null,
-    "Slug": "cybersecurity",
-    "CompletedAt": "2026-09-30T09:50:07.3491409Z",
-    "HasArticle": true,
-    "ArticleUrl": "/articles/cybersecurity.html"
+    "FindingCount": 14,
+    "CompletedAt": "2026-09-28T12:36:40.7886461Z"
   }
 ]
