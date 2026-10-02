@@ -1,0 +1,10 @@
+# GitHub Pages configuration - minimal to prevent build errors
+title: Aqevryn Research
+description: Autonomous technology research and publishing
+include:
+  - .nojekyll
+  - "*.html"
+  - "*.json"
+  - "*.css"
+exclude:
+  - README.md
